@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Tracing Concepts</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+      font-family:'Poppins',sans-serif;
+      background:#0f172a;
+      color:white;
+      padding:40px;
+      line-height:1.8;
+    }
+
+    .container{
+      max-width:1400px;
+      margin:auto;
+    }
+
+    .title{
+      font-size:58px;
+      font-weight:700;
+      margin-bottom:15px;
+      background:linear-gradient(90deg,#38bdf8,#818cf8);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .subtitle{
+      color:#94a3b8;
+      font-size:20px;
+      margin-bottom:45px;
+    }
+
+    .glass-card{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:24px;
+      padding:35px;
+      margin-bottom:35px;
+      backdrop-filter:blur(10px);
+      box-shadow:0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .section-title{
+      font-size:38px;
+      margin-bottom:20px;
+      color:#60a5fa;
+    }
+
+    p{
+      color:#cbd5e1;
+    }
+
+    .architecture{
+      margin-top:35px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+
+    .box{
+      padding:18px 24px;
+      border-radius:16px;
+      font-weight:600;
+      min-width:180px;
+      text-align:center;
+    }
+
+    .frontend{
+      background:#2563eb;
+    }
+
+    .checkout{
+      background:#7c3aed;
+    }
+
+    .payment{
+      background:#10b981;
+    }
+
+    .inventory{
+      background:#f59e0b;
+    }
+
+    .notify{
+      background:#ec4899;
+    }
+
+    .arrow{
+      font-size:28px;
+      color:#38bdf8;
+      font-weight:bold;
+    }
+
+    .code-box{
+      background:#020617;
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:18px;
+      padding:25px;
+      margin-top:25px;
+      overflow:auto;
+      font-family:monospace;
+      color:#67e8f9;
+      white-space:pre-wrap;
+      font-size:15px;
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      gap:25px;
+      margin-top:30px;
+    }
+
+    .card{
+      border-radius:22px;
+      padding:28px;
+      box-shadow:0 10px 25px rgba(0,0,0,0.25);
+    }
+
+    .blue{
+      background:linear-gradient(135deg,#2563eb,#1d4ed8);
+    }
+
+    .green{
+      background:linear-gradient(135deg,#10b981,#065f46);
+    }
+
+    .purple{
+      background:linear-gradient(135deg,#8b5cf6,#5b21b6);
+    }
+
+    .orange{
+      background:linear-gradient(135deg,#f59e0b,#92400e);
+    }
+
+    .pink{
+      background:linear-gradient(135deg,#ec4899,#9d174d);
+    }
+
+    .card h3{
+      margin-bottom:15px;
+      font-size:28px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:30px;
+      overflow:hidden;
+      border-radius:16px;
+    }
+
+    th{
+      background:#2563eb;
+      padding:18px;
+      text-align:left;
+    }
+
+    td{
+      padding:18px;
+      background:rgba(255,255,255,0.04);
+      border-bottom:1px solid rgba(255,255,255,0.08);
+      color:#e2e8f0;
+    }
+
+    ul{
+      margin-top:20px;
+      padding-left:22px;
+      color:#e2e8f0;
+    }
+
+    li{
+      margin-bottom:10px;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1 class="title">Tracing Fundamentals</h1>
+
+  <p class="subtitle">
+    Understanding Trace, Span, Trace ID, Span ID, Parent Span, Child Span,
+    and Distributed Tracing using a real E-Commerce example.
+  </p>
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Real E-Commerce Request Flow</h2>
+
+    <p>
+      Imagine a customer placing an order in an e-commerce application.
+    </p>
+
+    <div class="architecture">
+
+      <div class="box frontend">Frontend</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box checkout">Checkout Service</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box payment">Payment Service</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box inventory">Inventory Service</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box notify">Notification Service</div>
+
+    </div>
+
+    <div class="code-box">
+Customer clicks "Place Order"
+
+Frontend
+   ↓
+Checkout Service
+   ↓
+Payment Service
+   ↓
+Inventory Service
+   ↓
+Notification Service
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">What is a Trace?</h2>
+
+    <p>
+      A Trace represents the complete journey of a request
+      across multiple services and systems.
+    </p>
+
+    <ul>
+      <li>Tracks a request end-to-end</li>
+      <li>Helps identify bottlenecks</li>
+      <li>Shows service dependencies</li>
+      <li>Used in distributed systems</li>
+    </ul>
+
+    <div class="code-box">
+Trace Example:
+
+Customer places order
+   ↓
+Checkout API called
+   ↓
+Payment API called
+   ↓
+Inventory updated
+   ↓
+Email notification sent
+
+Entire flow = ONE TRACE
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">What is a Span?</h2>
+
+    <p>
+      A Span represents a single operation inside a Trace.
+    </p>
+
+    <div class="cards">
+
+      <div class="card blue">
+        <h3>Checkout Span</h3>
+
+        <p>
+          Tracks checkout API execution.
+        </p>
+      </div>
+
+      <div class="card green">
+        <h3>Payment Span</h3>
+
+        <p>
+          Tracks payment processing operation.
+        </p>
+      </div>
+
+      <div class="card orange">
+        <h3>Inventory Span</h3>
+
+        <p>
+          Tracks stock update operation.
+        </p>
+      </div>
+
+    </div>
+
+    <div class="code-box">
+Trace
+   ├── Span: Checkout API
+   ├── Span: Payment Service
+   ├── Span: Inventory Service
+   ├── Span: Notification Service
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">What is Trace ID?</h2>
+
+    <p>
+      Trace ID is a unique identifier assigned to the complete request journey.
+    </p>
+
+    <ul>
+      <li>Same Trace ID shared across all services</li>
+      <li>Helps correlate logs and spans</li>
+      <li>Used to track requests across systems</li>
+    </ul>
+
+    <div class="code-box">
+Trace ID:
+abc123xyz789
+
+Frontend Span
+Checkout Span
+Payment Span
+Inventory Span
+
+All share SAME Trace ID
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">What is Span ID?</h2>
+
+    <p>
+      Span ID uniquely identifies an individual span inside a trace.
+    </p>
+
+    <table>
+
+      <tr>
+        <th>Service</th>
+        <th>Span ID</th>
+      </tr>
+
+      <tr>
+        <td>Checkout Service</td>
+        <td>span-101</td>
+      </tr>
+
+      <tr>
+        <td>Payment Service</td>
+        <td>span-102</td>
+      </tr>
+
+      <tr>
+        <td>Inventory Service</td>
+        <td>span-103</td>
+      </tr>
+
+    </table>
+
+    <div class="code-box">
+One Trace
+   ↓
+Multiple Spans
+   ↓
+Each Span has unique Span ID
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Parent Span and Child Span</h2>
+
+    <p>
+      Spans can have parent-child relationships.
+    </p>
+
+    <div class="code-box">
+Parent Span:
+Checkout API
+
+   ├── Child Span:
+   Payment Service
+
+   ├── Child Span:
+   Inventory Service
+
+   ├── Child Span:
+   Notification Service
+    </div>
+
+    <ul>
+      <li>Main operation becomes Parent Span</li>
+      <li>Sub-operations become Child Spans</li>
+      <li>Helps visualize dependency flow</li>
+    </ul>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">What is Distributed Tracing?</h2>
+
+    <p>
+      Distributed tracing tracks requests across multiple microservices.
+    </p>
+
+    <div class="architecture">
+
+      <div class="box frontend">Frontend</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box checkout">Checkout API</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box payment">Payment API</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box inventory">Inventory API</div>
+
+    </div>
+
+    <div class="code-box">
+Without Distributed Tracing:
+Very difficult to identify where failures happen.
+
+With Distributed Tracing:
+Engineers can identify:
+- Slow APIs
+- Failed services
+- Latency bottlenecks
+- Dependency failures
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">What is Context Propagation?</h2>
+
+    <p>
+      Context propagation means passing Trace ID and Span information
+      across services.
+    </p>
+
+    <div class="code-box">
+Frontend sends request
+   ↓
+Trace ID attached to HTTP headers
+   ↓
+Checkout Service receives Trace ID
+   ↓
+Payment Service receives same Trace ID
+   ↓
+Entire request linked together
+    </div>
+
+    <ul>
+      <li>Keeps request connected across systems</li>
+      <li>Very important in microservices</li>
+      <li>Used heavily in Kubernetes environments</li>
+    </ul>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Complete Observability Flow</h2>
+
+    <div class="code-box">
+Customer Request
+   ↓
+Trace Created
+   ↓
+Multiple Spans Generated
+   ↓
+Trace ID Propagated
+   ↓
+Telemetry Exported
+   ↓
+Grafana / Tempo / Jaeger Visualization
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Quick Summary</h2>
+
+    <table>
+
+      <tr>
+        <th>Concept</th>
+        <th>Meaning</th>
+      </tr>
+
+      <tr>
+        <td>Trace</td>
+        <td>Complete request journey</td>
+      </tr>
+
+      <tr>
+        <td>Span</td>
+        <td>Single operation inside trace</td>
+      </tr>
+
+      <tr>
+        <td>Trace ID</td>
+        <td>Unique request identifier</td>
+      </tr>
+
+      <tr>
+        <td>Span ID</td>
+        <td>Unique operation identifier</td>
+      </tr>
+
+      <tr>
+        <td>Parent Span</td>
+        <td>Main operation</td>
+      </tr>
+
+      <tr>
+        <td>Child Span</td>
+        <td>Sub-operation</td>
+      </tr>
+
+      <tr>
+        <td>Distributed Tracing</td>
+        <td>Tracing across multiple services</td>
+      </tr>
+
+      <tr>
+        <td>Context Propagation</td>
+        <td>Passing Trace ID across services</td>
+      </tr>
+
+    </table>
+
+  </div>
+
+
+
+</div>
+
+</body>
+</html>
