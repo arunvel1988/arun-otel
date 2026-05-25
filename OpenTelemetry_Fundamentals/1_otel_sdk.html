@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flask OpenTelemetry SDK & API Example</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+      font-family:'Poppins',sans-serif;
+      background:#0f172a;
+      color:white;
+      padding:40px;
+      line-height:1.8;
+    }
+
+    .container{
+      max-width:1400px;
+      margin:auto;
+    }
+
+    .title{
+      font-size:54px;
+      font-weight:700;
+      margin-bottom:15px;
+      background:linear-gradient(90deg,#38bdf8,#818cf8);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .subtitle{
+      color:#94a3b8;
+      font-size:20px;
+      margin-bottom:45px;
+    }
+
+    .glass-card{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:24px;
+      padding:35px;
+      margin-bottom:35px;
+      backdrop-filter:blur(10px);
+      box-shadow:0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .section-title{
+      font-size:36px;
+      margin-bottom:20px;
+      color:#60a5fa;
+    }
+
+    p{
+      color:#cbd5e1;
+    }
+
+    .architecture{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:14px;
+      flex-wrap:wrap;
+      margin-top:25px;
+    }
+
+    .box{
+      padding:18px 24px;
+      border-radius:16px;
+      font-weight:600;
+      min-width:180px;
+      text-align:center;
+    }
+
+    .app{
+      background:#2563eb;
+    }
+
+    .sdk{
+      background:#7c3aed;
+    }
+
+    .collector{
+      background:#10b981;
+    }
+
+    .backend{
+      background:#f59e0b;
+    }
+
+    .arrow{
+      font-size:28px;
+      color:#38bdf8;
+      font-weight:bold;
+    }
+
+    .code-box{
+      background:#020617;
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:18px;
+      padding:25px;
+      margin-top:25px;
+      overflow:auto;
+      font-family:monospace;
+      color:#67e8f9;
+      white-space:pre;
+      font-size:14px;
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      gap:25px;
+      margin-top:30px;
+    }
+
+    .card{
+      border-radius:22px;
+      padding:28px;
+      box-shadow:0 10px 25px rgba(0,0,0,0.25);
+    }
+
+    .blue{
+      background:linear-gradient(135deg,#2563eb,#1d4ed8);
+    }
+
+    .green{
+      background:linear-gradient(135deg,#10b981,#065f46);
+    }
+
+    .purple{
+      background:linear-gradient(135deg,#8b5cf6,#5b21b6);
+    }
+
+    .orange{
+      background:linear-gradient(135deg,#f59e0b,#92400e);
+    }
+
+    .card h3{
+      margin-bottom:14px;
+      font-size:26px;
+    }
+
+    ul{
+      margin-top:15px;
+      padding-left:22px;
+      color:#e2e8f0;
+    }
+
+    li{
+      margin-bottom:10px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:30px;
+      overflow:hidden;
+      border-radius:16px;
+    }
+
+    th{
+      background:#2563eb;
+      padding:16px;
+      text-align:left;
+    }
+
+    td{
+      padding:16px;
+      background:rgba(255,255,255,0.04);
+      border-bottom:1px solid rgba(255,255,255,0.08);
+      color:#e2e8f0;
+    }
+
+    .step{
+      background:#111827;
+      border-left:5px solid #38bdf8;
+      padding:18px;
+      margin-top:18px;
+      border-radius:12px;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <h1 class="title">Flask + OpenTelemetry SDK & API</h1>
+
+  <p class="subtitle">
+    Understanding how OpenTelemetry API and SDK work in a real Flask microservice application.
+  </p>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Goal of This Example</h2>
+
+    <p>
+      In this example, students will understand:
+    </p>
+
+    <ul>
+      <li>What OpenTelemetry API does</li>
+      <li>What OpenTelemetry SDK does</li>
+      <li>How telemetry data is generated</li>
+      <li>How spans are created</li>
+      <li>How traces move to observability backends</li>
+      <li>How Flask applications are instrumented</li>
+    </ul>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Architecture Flow</h2>
+
+    <div class="architecture">
+
+      <div class="box app">Flask Application</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box sdk">OTel SDK/API</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box collector">OTel Collector</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box backend">Jaeger / Tempo / Grafana</div>
+
+    </div>
+
+    <div class="code-box">
+User Request
+    ↓
+Flask API
+    ↓
+OpenTelemetry Span Created
+    ↓
+OTel SDK Processes Span
+    ↓
+Collector Receives Telemetry
+    ↓
+Grafana / Tempo Displays Trace
+    </div>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Step 1 - Install Required Packages</h2>
+
+    <div class="code-box">
+pip install flask
+pip install opentelemetry-api
+pip install opentelemetry-sdk
+pip install opentelemetry-exporter-otlp
+pip install opentelemetry-instrumentation-flask
+    </div>
+
+    <div class="step">
+      <strong>Important:</strong>
+      Students should understand that:
+      <ul>
+        <li>API package defines telemetry interfaces</li>
+        <li>SDK package implements telemetry processing</li>
+        <li>Instrumentation package automatically traces Flask</li>
+      </ul>
+    </div>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Step 2 - Basic Flask Application</h2>
+
+    <div class="code-box">
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Flask Application Running"
+
+if __name__ == "__main__":
+    app.run(port=5000)
+    </div>
+
+    <p style="margin-top:20px;">
+      This is a normal Flask application without observability.
+    </p>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Step 3 - Add OpenTelemetry API & SDK</h2>
+
+    <div class="code-box">
+from flask import Flask
+
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+app = Flask(__name__)
+
+# Create Tracer Provider (SDK)
+trace.set_tracer_provider(TracerProvider())
+
+# Create Exporter
+otlp_exporter = OTLPSpanExporter(
+    endpoint="http://localhost:4318/v1/traces"
+)
+
+# Add Span Processor
+span_processor = BatchSpanProcessor(otlp_exporter)
+
+# Connect Processor to SDK
+trace.get_tracer_provider().add_span_processor(span_processor)
+
+# Create Tracer (API)
+tracer = trace.get_tracer(__name__)
+
+@app.route("/")
+def home():
+
+    # Create Span
+    with tracer.start_as_current_span("home-request"):
+        return "OTel Flask Application"
+
+if __name__ == "__main__":
+    app.run(port=5000)
+    </div>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Understanding the Code</h2>
+
+    <table>
+
+      <tr>
+        <th>Component</th>
+        <th>Purpose</th>
+      </tr>
+
+      <tr>
+        <td>TracerProvider</td>
+        <td>Main SDK component managing traces</td>
+      </tr>
+
+      <tr>
+        <td>OTLPSpanExporter</td>
+        <td>Sends telemetry data to Collector</td>
+      </tr>
+
+      <tr>
+        <td>BatchSpanProcessor</td>
+        <td>Batches spans before exporting</td>
+      </tr>
+
+      <tr>
+        <td>trace.get_tracer()</td>
+        <td>Creates tracer using OTel API</td>
+      </tr>
+
+      <tr>
+        <td>start_as_current_span()</td>
+        <td>Creates distributed trace span</td>
+      </tr>
+
+    </table>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">What is a Span?</h2>
+
+    <p>
+      A span represents a single operation inside an application.
+    </p>
+
+    <div class="code-box">
+Example:
+
+Customer opens checkout page
+    ↓
+Span Created = "checkout-request"
+    ↓
+Database query executed
+    ↓
+Payment API called
+    ↓
+Response returned
+    </div>
+
+    <div class="cards">
+
+      <div class="card blue">
+        <h3>Trace</h3>
+        <p>
+          Complete request journey.
+        </p>
+      </div>
+
+      <div class="card green">
+        <h3>Span</h3>
+        <p>
+          Individual operation inside a trace.
+        </p>
+      </div>
+
+      <div class="card purple">
+        <h3>Attributes</h3>
+        <p>
+          Metadata attached to spans.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Adding Custom Attributes</h2>
+
+    <div class="code-box">
+@app.route("/checkout")
+def checkout():
+
+    with tracer.start_as_current_span("checkout-api") as span:
+
+        span.set_attribute("user.id", 1001)
+        span.set_attribute("payment.method", "UPI")
+        span.set_attribute("order.amount", 5000)
+
+        return "Checkout Success"
+    </div>
+
+    <p style="margin-top:20px;">
+      Attributes provide detailed observability context.
+    </p>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Auto Instrumentation</h2>
+
+    <p>
+      OpenTelemetry can automatically instrument Flask applications.
+    </p>
+
+    <div class="code-box">
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+
+FlaskInstrumentor().instrument_app(app)
+    </div>
+
+    <div class="step">
+      <strong>What happens automatically?</strong>
+
+      <ul>
+        <li>Incoming HTTP requests traced</li>
+        <li>Response timings captured</li>
+        <li>Request metadata collected</li>
+        <li>Error spans generated automatically</li>
+      </ul>
+    </div>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">How OTel API and SDK Work Together</h2>
+
+    <div class="architecture">
+
+      <div class="box app">Application Code</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box sdk">OTel API</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box collector">OTel SDK</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box backend">Exporter</div>
+
+    </div>
+
+    <table>
+
+      <tr>
+        <th>Layer</th>
+        <th>Responsibility</th>
+      </tr>
+
+      <tr>
+        <td>OTel API</td>
+        <td>Defines telemetry interfaces</td>
+      </tr>
+
+      <tr>
+        <td>OTel SDK</td>
+        <td>Processes telemetry data</td>
+      </tr>
+
+      <tr>
+        <td>Exporter</td>
+        <td>Sends data to observability tools</td>
+      </tr>
+
+    </table>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Real E-Commerce Example</h2>
+
+    <div class="code-box">
+Customer clicks "Place Order"
+
+Frontend
+   ↓
+Checkout Flask API
+   ↓
+Payment Service
+   ↓
+Inventory Service
+   ↓
+Notification Service
+    </div>
+
+    <p style="margin-top:25px;">
+      OpenTelemetry traces the complete request flow,
+      helping engineers identify:
+    </p>
+
+    <ul>
+      <li>Slow APIs</li>
+      <li>Database latency</li>
+      <li>Payment failures</li>
+      <li>Microservice bottlenecks</li>
+      <li>Error propagation</li>
+    </ul>
+
+  </div>
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Key Learning Summary</h2>
+
+    <table>
+
+      <tr>
+        <th>Concept</th>
+        <th>Meaning</th>
+      </tr>
+
+      <tr>
+        <td>OTel API</td>
+        <td>Defines telemetry interfaces</td>
+      </tr>
+
+      <tr>
+        <td>OTel SDK</td>
+        <td>Implements telemetry processing</td>
+      </tr>
+
+      <tr>
+        <td>Span</td>
+        <td>Single operation in a trace</td>
+      </tr>
+
+      <tr>
+        <td>Trace</td>
+        <td>Complete request journey</td>
+      </tr>
+
+      <tr>
+        <td>Exporter</td>
+        <td>Sends telemetry to backend tools</td>
+      </tr>
+
+      <tr>
+        <td>Collector</td>
+        <td>Central telemetry pipeline service</td>
+      </tr>
+
+    </table>
+
+  </div>
+
+
+</div>
+
+</body>
+</html>
