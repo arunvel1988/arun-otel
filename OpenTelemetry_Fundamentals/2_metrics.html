@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Metrics Concepts</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+      font-family:'Poppins',sans-serif;
+      background:#0f172a;
+      color:white;
+      padding:40px;
+      line-height:1.8;
+    }
+
+    .container{
+      max-width:1450px;
+      margin:auto;
+    }
+
+    .title{
+      font-size:58px;
+      font-weight:700;
+      margin-bottom:15px;
+      background:linear-gradient(90deg,#38bdf8,#818cf8);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .subtitle{
+      color:#94a3b8;
+      font-size:20px;
+      margin-bottom:45px;
+    }
+
+    .glass-card{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:24px;
+      padding:35px;
+      margin-bottom:35px;
+      backdrop-filter:blur(10px);
+      box-shadow:0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .section-title{
+      font-size:38px;
+      margin-bottom:20px;
+      color:#60a5fa;
+    }
+
+    p{
+      color:#cbd5e1;
+    }
+
+    ul{
+      margin-top:20px;
+      padding-left:22px;
+      color:#e2e8f0;
+    }
+
+    li{
+      margin-bottom:10px;
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      gap:25px;
+      margin-top:30px;
+    }
+
+    .card{
+      border-radius:22px;
+      padding:28px;
+      box-shadow:0 10px 25px rgba(0,0,0,0.25);
+    }
+
+    .blue{
+      background:linear-gradient(135deg,#2563eb,#1d4ed8);
+    }
+
+    .green{
+      background:linear-gradient(135deg,#10b981,#065f46);
+    }
+
+    .purple{
+      background:linear-gradient(135deg,#8b5cf6,#5b21b6);
+    }
+
+    .orange{
+      background:linear-gradient(135deg,#f59e0b,#92400e);
+    }
+
+    .pink{
+      background:linear-gradient(135deg,#ec4899,#9d174d);
+    }
+
+    .card h3{
+      margin-bottom:15px;
+      font-size:28px;
+    }
+
+    .card p{
+      color:#f1f5f9;
+    }
+
+    .architecture{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:14px;
+      flex-wrap:wrap;
+      margin-top:35px;
+    }
+
+    .box{
+      padding:18px 24px;
+      border-radius:16px;
+      font-weight:600;
+      min-width:190px;
+      text-align:center;
+    }
+
+    .frontend{
+      background:#2563eb;
+    }
+
+    .checkout{
+      background:#7c3aed;
+    }
+
+    .payment{
+      background:#10b981;
+    }
+
+    .inventory{
+      background:#f59e0b;
+    }
+
+    .grafana{
+      background:#ec4899;
+    }
+
+    .arrow{
+      font-size:28px;
+      color:#38bdf8;
+      font-weight:bold;
+    }
+
+    .code-box{
+      background:#020617;
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:18px;
+      padding:25px;
+      margin-top:25px;
+      overflow:auto;
+      font-family:monospace;
+      color:#67e8f9;
+      white-space:pre;
+      font-size:14px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:30px;
+      overflow:hidden;
+      border-radius:16px;
+    }
+
+    th{
+      background:#2563eb;
+      padding:18px;
+      text-align:left;
+    }
+
+    td{
+      padding:18px;
+      background:rgba(255,255,255,0.04);
+      border-bottom:1px solid rgba(255,255,255,0.08);
+      color:#e2e8f0;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1 class="title">Metrics Concepts</h1>
+
+  <p class="subtitle">
+    Understanding Counters, Gauges, Histograms,
+    Exemplars, RED Metrics, and USE Metrics using real-world examples.
+  </p>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">What are Metrics?</h2>
+
+    <p>
+      Metrics are numerical measurements collected over time.
+      They help engineers monitor application and infrastructure health.
+    </p>
+
+    <ul>
+      <li>Measure application performance</li>
+      <li>Track infrastructure health</li>
+      <li>Detect failures and bottlenecks</li>
+      <li>Monitor system behavior</li>
+      <li>Power dashboards and alerts</li>
+    </ul>
+
+    <div class="code-box">
+Examples:
+
+CPU Usage = 70%
+
+Memory Usage = 4 GB
+
+API Requests = 500/sec
+
+Checkout Latency = 120 ms
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Real E-Commerce Monitoring Flow</h2>
+
+    <div class="architecture">
+
+      <div class="box frontend">Frontend</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box checkout">Checkout API</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box payment">Payment Service</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box inventory">Inventory Service</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box grafana">Grafana Dashboard</div>
+
+    </div>
+
+    <div class="code-box">
+Customer places order
+   ↓
+Services generate metrics
+   ↓
+Prometheus collects metrics
+   ↓
+Grafana visualizes dashboards
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Counter Metrics</h2>
+
+    <p>
+      Counters only increase over time.
+      They are used to count events.
+    </p>
+
+    <ul>
+      <li>Total API requests</li>
+      <li>Total orders placed</li>
+      <li>Total payment failures</li>
+      <li>Total login attempts</li>
+    </ul>
+
+    <div class="cards">
+
+      <div class="card blue">
+
+        <h3>Characteristics</h3>
+
+        <p>
+          Counter values always increase.
+          They reset only when application restarts.
+        </p>
+
+      </div>
+
+      <div class="card green">
+
+        <h3>E-Commerce Example</h3>
+
+        <p>
+          Total number of checkout requests
+          processed by Checkout API.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="code-box">
+checkout_requests_total = 10500
+
+payment_failures_total = 52
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Gauge Metrics</h2>
+
+    <p>
+      Gauges can increase or decrease.
+      They represent current values.
+    </p>
+
+    <ul>
+      <li>CPU Usage</li>
+      <li>Memory Usage</li>
+      <li>Current Active Users</li>
+      <li>Queue Length</li>
+    </ul>
+
+    <div class="cards">
+
+      <div class="card purple">
+
+        <h3>Characteristics</h3>
+
+        <p>
+          Gauge values continuously change
+          depending on system state.
+        </p>
+
+      </div>
+
+      <div class="card orange">
+
+        <h3>E-Commerce Example</h3>
+
+        <p>
+          Current number of active users
+          browsing products.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="code-box">
+active_users = 320
+
+cpu_usage = 72%
+
+inventory_queue_size = 45
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Histogram Metrics</h2>
+
+    <p>
+      Histograms measure value distribution.
+      Commonly used for latency analysis.
+    </p>
+
+    <ul>
+      <li>API response time</li>
+      <li>Database query latency</li>
+      <li>Payment processing duration</li>
+      <li>Request size distribution</li>
+    </ul>
+
+    <div class="cards">
+
+      <div class="card blue">
+
+        <h3>Purpose</h3>
+
+        <p>
+          Helps understand latency distribution
+          across requests.
+        </p>
+
+      </div>
+
+      <div class="card pink">
+
+        <h3>E-Commerce Example</h3>
+
+        <p>
+          Checkout API latency
+          distribution analysis.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="code-box">
+checkout_latency_bucket{le="100"} 1200
+checkout_latency_bucket{le="300"} 3500
+checkout_latency_bucket{le="500"} 5200
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">What are Exemplars?</h2>
+
+    <p>
+      Exemplars connect metrics with traces.
+      They help engineers jump from a metric
+      directly into a distributed trace.
+    </p>
+
+    <div class="code-box">
+High API Latency Metric
+   ↓
+Associated Trace ID
+   ↓
+Open Distributed Trace
+   ↓
+Find Slow Service
+    </div>
+
+    <table>
+
+      <tr>
+        <th>Concept</th>
+        <th>Description</th>
+      </tr>
+
+      <tr>
+        <td>Metric</td>
+        <td>Numerical measurement</td>
+      </tr>
+
+      <tr>
+        <td>Exemplar</td>
+        <td>Reference to related trace</td>
+      </tr>
+
+      <tr>
+        <td>Trace</td>
+        <td>Complete request journey</td>
+      </tr>
+
+    </table>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">RED Metrics</h2>
+
+    <p>
+      RED metrics focus on application-level monitoring.
+    </p>
+
+    <div class="cards">
+
+      <div class="card blue">
+
+        <h3>Rate</h3>
+
+        <p>
+          Number of requests handled per second.
+        </p>
+
+      </div>
+
+      <div class="card green">
+
+        <h3>Errors</h3>
+
+        <p>
+          Number of failed requests.
+        </p>
+
+      </div>
+
+      <div class="card orange">
+
+        <h3>Duration</h3>
+
+        <p>
+          Request latency and response time.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="code-box">
+Checkout API:
+
+Rate = 500 requests/sec
+
+Errors = 12 failed requests
+
+Duration = 120 ms average latency
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">USE Metrics</h2>
+
+    <p>
+      USE metrics focus on infrastructure monitoring.
+    </p>
+
+    <div class="cards">
+
+      <div class="card purple">
+
+        <h3>Utilization</h3>
+
+        <p>
+          Percentage of resource usage.
+        </p>
+
+      </div>
+
+      <div class="card pink">
+
+        <h3>Saturation</h3>
+
+        <p>
+          How busy the resource is.
+        </p>
+
+      </div>
+
+      <div class="card green">
+
+        <h3>Errors</h3>
+
+        <p>
+          Infrastructure-level failures.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="code-box">
+Kubernetes Node:
+
+CPU Utilization = 80%
+
+Memory Saturation = High
+
+Disk Errors = 5
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">RED vs USE Metrics</h2>
+
+    <table>
+
+      <tr>
+        <th>RED Metrics</th>
+        <th>USE Metrics</th>
+      </tr>
+
+      <tr>
+        <td>Focus on applications</td>
+        <td>Focus on infrastructure</td>
+      </tr>
+
+      <tr>
+        <td>Request Rate</td>
+        <td>Resource Utilization</td>
+      </tr>
+
+      <tr>
+        <td>Application Errors</td>
+        <td>Infrastructure Errors</td>
+      </tr>
+
+      <tr>
+        <td>Request Duration</td>
+        <td>System Saturation</td>
+      </tr>
+
+      <tr>
+        <td>API Monitoring</td>
+        <td>CPU, Memory, Disk Monitoring</td>
+      </tr>
+
+    </table>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Complete Metrics Monitoring Flow</h2>
+
+    <div class="code-box">
+Applications & Infrastructure
+   ↓
+Generate Metrics
+   ↓
+Prometheus Collects Metrics
+   ↓
+Grafana Dashboards
+   ↓
+Alerts & Monitoring
+    </div>
+
+  </div>
+
+
+
+</div>
+
+</body>
+</html>
