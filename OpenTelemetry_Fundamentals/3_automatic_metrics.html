@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Application Metrics Instrumentation</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+      font-family:'Poppins',sans-serif;
+      background:#0f172a;
+      color:white;
+      padding:40px;
+      line-height:1.8;
+    }
+
+    .container{
+      max-width:1450px;
+      margin:auto;
+    }
+
+    .title{
+      font-size:58px;
+      font-weight:700;
+      margin-bottom:15px;
+      background:linear-gradient(90deg,#38bdf8,#818cf8);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .subtitle{
+      color:#94a3b8;
+      font-size:20px;
+      margin-bottom:45px;
+    }
+
+    .glass-card{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:24px;
+      padding:35px;
+      margin-bottom:35px;
+      backdrop-filter:blur(10px);
+      box-shadow:0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .section-title{
+      font-size:38px;
+      margin-bottom:20px;
+      color:#60a5fa;
+    }
+
+    p{
+      color:#cbd5e1;
+    }
+
+    ul{
+      margin-top:20px;
+      padding-left:22px;
+      color:#e2e8f0;
+    }
+
+    li{
+      margin-bottom:10px;
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      gap:25px;
+      margin-top:30px;
+    }
+
+    .card{
+      border-radius:22px;
+      padding:28px;
+      box-shadow:0 10px 25px rgba(0,0,0,0.25);
+    }
+
+    .blue{
+      background:linear-gradient(135deg,#2563eb,#1d4ed8);
+    }
+
+    .green{
+      background:linear-gradient(135deg,#10b981,#065f46);
+    }
+
+    .purple{
+      background:linear-gradient(135deg,#8b5cf6,#5b21b6);
+    }
+
+    .orange{
+      background:linear-gradient(135deg,#f59e0b,#92400e);
+    }
+
+    .pink{
+      background:linear-gradient(135deg,#ec4899,#9d174d);
+    }
+
+    .card h3{
+      margin-bottom:15px;
+      font-size:28px;
+    }
+
+    .card p{
+      color:#f1f5f9;
+    }
+
+    .architecture{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:14px;
+      flex-wrap:wrap;
+      margin-top:35px;
+    }
+
+    .box{
+      padding:18px 24px;
+      border-radius:16px;
+      font-weight:600;
+      min-width:190px;
+      text-align:center;
+    }
+
+    .frontend{
+      background:#2563eb;
+    }
+
+    .checkout{
+      background:#7c3aed;
+    }
+
+    .collector{
+      background:#10b981;
+    }
+
+    .prometheus{
+      background:#f59e0b;
+    }
+
+    .grafana{
+      background:#ec4899;
+    }
+
+    .arrow{
+      font-size:28px;
+      color:#38bdf8;
+      font-weight:bold;
+    }
+
+    .code-box{
+      background:#020617;
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:18px;
+      padding:25px;
+      margin-top:25px;
+      overflow:auto;
+      font-family:monospace;
+      color:#67e8f9;
+      white-space:pre;
+      font-size:14px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:30px;
+      overflow:hidden;
+      border-radius:16px;
+    }
+
+    th{
+      background:#2563eb;
+      padding:18px;
+      text-align:left;
+    }
+
+    td{
+      padding:18px;
+      background:rgba(255,255,255,0.04);
+      border-bottom:1px solid rgba(255,255,255,0.08);
+      color:#e2e8f0;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1 class="title">Application Metrics Instrumentation</h1>
+
+  <p class="subtitle">
+    Understanding OpenTelemetry Metrics SDK,
+    Automatic Metrics, and Custom Business Metrics
+    using Flask examples.
+  </p>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">What is Metrics Instrumentation?</h2>
+
+    <p>
+      Metrics instrumentation means adding metric collection capability
+      into applications using OpenTelemetry Metrics SDK.
+    </p>
+
+    <ul>
+      <li>Collect application performance metrics</li>
+      <li>Collect infrastructure metrics</li>
+      <li>Monitor runtime behavior</li>
+      <li>Track business KPIs</li>
+      <li>Enable dashboards and alerts</li>
+    </ul>
+
+    <div class="code-box">
+Examples:
+
+API Request Count
+
+Checkout Latency
+
+Cart Count
+
+CPU Usage
+
+Database Query Time
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Metrics Collection Flow</h2>
+
+    <div class="architecture">
+
+      <div class="box frontend">Flask Application</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box checkout">OTel Metrics SDK</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box collector">OTel Collector</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box prometheus">Prometheus</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box grafana">Grafana</div>
+
+    </div>
+
+    <div class="code-box">
+Application generates metrics
+   ↓
+OTel SDK collects metrics
+   ↓
+Collector processes telemetry
+   ↓
+Prometheus stores metrics
+   ↓
+Grafana visualizes dashboards
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Using OpenTelemetry Metrics SDK</h2>
+
+    <p>
+      OpenTelemetry Metrics SDK allows developers
+      to create counters, gauges, and histograms.
+    </p>
+
+    <div class="code-box">
+pip install opentelemetry-sdk
+pip install opentelemetry-api
+pip install opentelemetry-exporter-otlp
+    </div>
+
+    <div class="code-box">
+from opentelemetry.metrics import get_meter
+
+meter = get_meter("ecommerce-app")
+    </div>
+
+    <table>
+
+      <tr>
+        <th>Component</th>
+        <th>Purpose</th>
+      </tr>
+
+      <tr>
+        <td>Meter</td>
+        <td>Main metrics object</td>
+      </tr>
+
+      <tr>
+        <td>Counter</td>
+        <td>Counts events</td>
+      </tr>
+
+      <tr>
+        <td>Gauge</td>
+        <td>Current value measurement</td>
+      </tr>
+
+      <tr>
+        <td>Histogram</td>
+        <td>Latency distribution measurement</td>
+      </tr>
+
+    </table>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Automatic Metrics</h2>
+
+    <p>
+      OpenTelemetry can automatically generate runtime,
+      HTTP, database, and gRPC metrics.
+    </p>
+
+    <div class="cards">
+
+      <div class="card blue">
+
+        <h3>Runtime Metrics</h3>
+
+        <p>
+          CPU usage, memory usage,
+          garbage collection metrics.
+        </p>
+
+      </div>
+
+      <div class="card green">
+
+        <h3>HTTP Metrics</h3>
+
+        <p>
+          Request count,
+          latency, status codes.
+        </p>
+
+      </div>
+
+      <div class="card orange">
+
+        <h3>Database Metrics</h3>
+
+        <p>
+          Query duration,
+          connection count,
+          DB latency.
+        </p>
+
+      </div>
+
+      <div class="card purple">
+
+        <h3>gRPC Metrics</h3>
+
+        <p>
+          RPC duration,
+          request count,
+          RPC failures.
+        </p>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Flask Automatic Metrics Example</h2>
+
+    <div class="code-box">
+from flask import Flask
+
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+
+app = Flask(__name__)
+
+# Enable automatic instrumentation
+FlaskInstrumentor().instrument_app(app)
+
+@app.route("/")
+def home():
+    return "Metrics Enabled"
+
+if __name__ == "__main__":
+    app.run(port=5000)
+    </div>
+
+    <div class="code-box">
+Automatically Generated Metrics:
+
+http.server.duration
+
+http.server.request.count
+
+http.server.active.requests
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Custom Business Metrics</h2>
+
+    <p>
+      Business metrics track domain-specific KPIs
+      important for the organization.
+    </p>
+
+    <ul>
+      <li>Cart Count</li>
+      <li>Checkout Rate</li>
+      <li>Orders Per Minute</li>
+      <li>Payment Success Rate</li>
+      <li>Inventory Availability</li>
+    </ul>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Custom Counter Metric Example</h2>
+
+    <p>
+      Track total checkout requests using Counter metrics.
+    </p>
+
+    <div class="code-box">
+from flask import Flask
+
+from opentelemetry.metrics import get_meter
+
+app = Flask(__name__)
+
+meter = get_meter("ecommerce-app")
+
+checkout_counter = meter.create_counter(
+    name="checkout_requests_total",
+    description="Total checkout requests"
+)
+
+@app.route("/checkout")
+def checkout():
+
+    checkout_counter.add(1)
+
+    return "Checkout Completed"
+
+if __name__ == "__main__":
+    app.run(port=5000)
+    </div>
+
+    <div class="code-box">
+Metric Generated:
+
+checkout_requests_total = 10500
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Custom Gauge Metric Example</h2>
+
+    <p>
+      Track current active carts in the application.
+    </p>
+
+    <div class="code-box">
+from opentelemetry.metrics import get_meter
+
+meter = get_meter("ecommerce-app")
+
+active_cart_gauge = meter.create_observable_gauge(
+    name="active_cart_count",
+    description="Current active shopping carts"
+)
+
+# Example Value
+active_cart_count = 320
+    </div>
+
+    <div class="code-box">
+Metric Generated:
+
+active_cart_count = 320
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Custom Histogram Metric Example</h2>
+
+    <p>
+      Histograms help measure request latency distribution.
+    </p>
+
+    <div class="code-box">
+from opentelemetry.metrics import get_meter
+
+meter = get_meter("ecommerce-app")
+
+checkout_latency = meter.create_histogram(
+    name="checkout_latency",
+    description="Checkout API latency"
+)
+
+# Record latency
+checkout_latency.record(250)
+    </div>
+
+    <div class="code-box">
+Latency Distribution:
+
+0-100 ms
+
+100-300 ms
+
+300-500 ms
+
+500+ ms
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Real Business Metrics Example</h2>
+
+    <div class="architecture">
+
+      <div class="box frontend">Customer</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box checkout">Checkout API</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box collector">Metrics Generated</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box prometheus">Prometheus</div>
+
+      <div class="arrow">→</div>
+
+      <div class="box grafana">Dashboard</div>
+
+    </div>
+
+    <div class="code-box">
+Business Metrics:
+
+cart_count = 320
+
+checkout_rate = 520/min
+
+payment_success_rate = 98%
+
+inventory_remaining = 2400
+    </div>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Why Business Metrics are Important</h2>
+
+    <table>
+
+      <tr>
+        <th>Metric</th>
+        <th>Business Value</th>
+      </tr>
+
+      <tr>
+        <td>Cart Count</td>
+        <td>Tracks customer engagement</td>
+      </tr>
+
+      <tr>
+        <td>Checkout Rate</td>
+        <td>Measures order conversion</td>
+      </tr>
+
+      <tr>
+        <td>Payment Success Rate</td>
+        <td>Tracks payment reliability</td>
+      </tr>
+
+      <tr>
+        <td>Inventory Metrics</td>
+        <td>Prevents stock shortages</td>
+      </tr>
+
+    </table>
+
+  </div>
+
+
+
+
+  <div class="glass-card">
+
+    <h2 class="section-title">Complete Metrics Instrumentation Flow</h2>
+
+    <div class="code-box">
+Application Events
+   ↓
+OTel Metrics SDK
+   ↓
+Counters / Gauges / Histograms
+   ↓
+OTel Collector
+   ↓
+Prometheus
+   ↓
+Grafana Dashboards & Alerts
+    </div>
+
+  </div>
+
+
+
+</div>
+
+</body>
+</html>
