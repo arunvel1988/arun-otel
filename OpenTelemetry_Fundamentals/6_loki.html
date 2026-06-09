@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Grafana Alloy Logs Training</title>
+
+<style>
+
+body{
+    background:#0b1020;
+    color:white;
+    font-family:Arial;
+    margin:0;
+}
+
+.header{
+    background:#005bbb;
+    text-align:center;
+    padding:30px;
+}
+
+
+.section{
+
+    background:#17203d;
+    margin:25px;
+    padding:25px;
+    border-radius:12px;
+
+}
+
+
+h2{
+    color:#00d9ff;
+}
+
+
+pre{
+
+    background:#000;
+    color:#00ff99;
+    padding:20px;
+    border-radius:10px;
+    overflow:auto;
+
+}
+
+
+.box{
+
+    display:inline-block;
+    padding:20px;
+    margin:10px;
+    background:#27345f;
+    border-radius:10px;
+
+}
+
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+<div class="header">
+
+<h1>Grafana Alloy Logs Pipeline</h1>
+
+<h3>
+Flask Logs → Alloy → Processing → Loki
+</h3>
+
+</div>
+
+
+
+
+
+
+<div class="section">
+
+<h2>Architecture</h2>
+
+
+<div class="box">Flask Application</div>
+
+→
+
+<div class="box">Docker Logs</div>
+
+→
+
+<div class="box">Grafana Alloy</div>
+
+→
+
+<div class="box">Loki</div>
+
+→
+
+<div class="box">Grafana</div>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>1. Why Alloy For Logs?</h2>
+
+
+<p>
+
+Applications generate thousands of logs.
+
+We need something to:
+
+</p>
+
+
+<pre>
+
+Collect logs
+
+Understand logs
+
+Add labels
+
+Filter unwanted data
+
+Send logs to storage
+
+
+</pre>
+
+
+
+<p>
+
+Grafana Alloy works as the log collector.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>2. Flask Application Generating Logs</h2>
+
+
+
+app.py
+
+
+
+<pre>
+
+
+from flask import Flask
+
+import logging
+
+
+
+app = Flask(__name__)
+
+
+
+logging.basicConfig(
+
+level=logging.INFO,
+
+format="%(levelname)s %(message)s"
+
+)
+
+
+
+@app.route("/checkout")
+
+def checkout():
+
+
+
+    logging.info(
+
+    "checkout completed user=101 amount=500"
+
+    )
+
+
+
+    return "success"
+
+
+
+
+
+app.run(
+
+host="0.0.0.0",
+
+port=5000
+
+)
+
+
+
+</pre>
+
+
+
+Output:
+
+
+
+<pre>
+
+INFO checkout completed user=101 amount=500
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>3. Alloy Log Receivers</h2>
+
+
+<p>
+
+Receivers decide where Alloy collects logs from.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>3.1 File Log Receiver</h2>
+
+
+
+<p>
+
+Application writes logs into files.
+
+Example:
+
+</p>
+
+
+<pre>
+
+/var/log/app.log
+
+</pre>
+
+
+Log:
+
+
+
+<pre>
+
+ERROR payment failed user=200
+
+</pre>
+
+
+Alloy:
+
+
+
+<pre>
+
+local.file_match "app" {
+
+
+path_targets = [
+
+{
+
+__path__="/var/log/app.log"
+
+}
+
+]
+
+}
+
+
+
+loki.source.file "app"{
+
+
+targets = local.file_match.app.targets
+
+
+forward_to=[
+
+loki.write.default.receiver
+
+]
+
+
+}
+
+
+</pre>
+
+
+Flow:
+
+
+
+<pre>
+
+app.log
+
+   |
+
+Alloy reads file
+
+   |
+
+Loki
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>3.2 Docker Log Receiver</h2>
+
+
+
+<p>
+
+Containers write logs automatically.
+
+</p>
+
+
+
+Check:
+
+
+
+<pre>
+
+docker logs flask-container
+
+
+</pre>
+
+
+Example:
+
+
+
+<pre>
+
+INFO checkout completed
+
+
+</pre>
+
+
+
+Alloy:
+
+
+
+<pre>
+
+discovery.docker "containers" {
+
+
+host="unix:///var/run/docker.sock"
+
+
+}
+
+
+
+loki.source.docker "logs"{
+
+
+host="unix:///var/run/docker.sock"
+
+
+targets=discovery.docker.containers.targets
+
+
+
+forward_to=[
+
+loki.write.default.receiver
+
+]
+
+
+}
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>3.3 Journald Receiver</h2>
+
+
+
+<p>
+
+Linux system services store logs in journald.
+
+</p>
+
+
+
+Example:
+
+
+
+<pre>
+
+systemctl status nginx
+
+
+journalctl -u nginx
+
+
+</pre>
+
+
+
+Alloy:
+
+
+
+<pre>
+
+
+loki.source.journal "linux"{
+
+
+
+forward_to=[
+
+
+loki.write.default.receiver
+
+
+]
+
+
+}
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>3.4 Fluent Receiver</h2>
+
+
+
+<p>
+
+Existing Fluent Bit / Fluentd agents can send logs into Alloy.
+
+</p>
+
+
+
+Flow:
+
+
+
+<pre>
+
+Application
+
+
+   |
+
+
+Fluent Bit
+
+
+   |
+
+
+Alloy
+
+
+   |
+
+
+Loki
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>4. Log Processing</h2>
+
+
+<p>
+
+Raw logs are usually messy.
+
+Processors convert them into useful data.
+
+</p>
+
+
+Raw:
+
+
+
+<pre>
+
+INFO checkout user=101 amount=500
+
+</pre>
+
+
+Wanted:
+
+
+
+<pre>
+
+level=INFO
+
+event=checkout
+
+user=101
+
+amount=500
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>5. Regex Parsing Processor</h2>
+
+
+<p>
+
+Regex extracts values from normal text logs.
+
+</p>
+
+
+
+Input:
+
+
+
+<pre>
+
+ERROR payment_failed user=55
+
+</pre>
+
+
+Regex:
+
+
+
+<pre>
+
+(?P&lt;level&gt;ERROR|INFO)
+
+(?P&lt;event&gt;\w+)
+
+user=(?P&lt;user&gt;\d+)
+
+
+</pre>
+
+
+
+Output:
+
+
+
+<pre>
+
+level = ERROR
+
+event = payment_failed
+
+user = 55
+
+
+</pre>
+
+
+
+
+Alloy:
+
+
+
+<pre>
+
+
+stage.regex {
+
+
+expression =
+
+"(?P&lt;level&gt;\\w+) (?P&lt;msg&gt;.*)"
+
+}
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>6. JSON Parsing Processor</h2>
+
+
+
+Modern apps produce JSON logs.
+
+
+
+Input:
+
+
+
+<pre>
+
+{
+
+"level":"ERROR",
+
+"user":"101",
+
+"message":"payment failed"
+
+}
+
+
+</pre>
+
+
+
+Alloy:
+
+
+
+<pre>
+
+stage.json {
+
+
+expressions={
+
+
+level="level"
+
+
+user="user"
+
+
+message="message"
+
+
+}
+
+
+}
+
+
+</pre>
+
+
+After:
+
+
+
+<pre>
+
+level=ERROR
+
+user=101
+
+message=payment failed
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>7. Severity Mapping</h2>
+
+
+
+<p>
+
+Different apps use different names.
+
+Normalize them.
+
+</p>
+
+
+
+Example:
+
+
+
+<pre>
+
+warning
+
+WARN
+
+warn
+
+
+</pre>
+
+
+Convert:
+
+
+
+<pre>
+
+severity = WARN
+
+
+</pre>
+
+
+Alloy:
+
+
+
+<pre>
+
+stage.labels {
+
+
+values={
+
+
+severity="level"
+
+
+}
+
+
+}
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>8. Export Logs To Loki</h2>
+
+
+<p>
+
+After processing, Alloy sends logs to Loki.
+
+</p>
+
+
+Config:
+
+
+
+<pre>
+
+
+loki.write "default"{
+
+
+endpoint {
+
+
+url="http://loki:3100/loki/api/v1/push"
+
+
+}
+
+
+}
+
+
+</pre>
+
+
+Flow:
+
+
+
+<pre>
+
+
+Flask
+
+
+ |
+
+
+Docker logs
+
+
+ |
+
+
+Alloy Receiver
+
+
+ |
+
+
+Parser
+
+
+ |
+
+
+Labels
+
+
+ |
+
+
+Loki
+
+
+ |
+
+
+Grafana
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>9. Docker Compose Complete Lab</h2>
+
+
+
+<pre>
+
+
+version: "3"
+
+
+
+services:
+
+
+
+ flask:
+
+
+   build: .
+
+
+   ports:
+
+     - "5000:5000"
+
+
+
+
+
+ alloy:
+
+
+
+   image:grafana/alloy
+
+
+
+   volumes:
+
+
+     - /var/run/docker.sock:/var/run/docker.sock
+
+
+
+
+
+ loki:
+
+
+
+   image:grafana/loki
+
+
+
+   ports:
+
+
+     - "3100:3100"
+
+
+
+
+
+ grafana:
+
+
+
+   image:grafana/grafana
+
+
+
+   ports:
+
+
+     - "3000:3000"
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>Final Log Journey</h2>
+
+
+
+<pre>
+
+
+User hits checkout API
+
+
+          |
+
+
+Flask prints log
+
+
+          |
+
+
+Docker stores log
+
+
+          |
+
+
+Alloy receives
+
+
+          |
+
+
+Regex / JSON parsing
+
+
+          |
+
+
+Severity mapping
+
+
+          |
+
+
+Loki stores
+
+
+          |
+
+
+Grafana searches
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+</body>
+
+</html>
