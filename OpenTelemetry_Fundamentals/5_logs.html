@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>OpenTelemetry Logging Training</title>
+
+<style>
+
+body{
+    margin:0;
+    background:#0b1020;
+    color:white;
+    font-family:Arial;
+}
+
+.header{
+    background:#005bbb;
+    padding:30px;
+    text-align:center;
+}
+
+.section{
+
+    background:#17203d;
+    margin:25px;
+    padding:25px;
+    border-radius:12px;
+
+}
+
+h2{
+    color:#00d9ff;
+}
+
+pre{
+
+    background:black;
+    color:#00ff99;
+    padding:20px;
+    border-radius:10px;
+    overflow:auto;
+
+}
+
+.box{
+
+    display:inline-block;
+    background:#27345f;
+    padding:20px;
+    margin:10px;
+    border-radius:10px;
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="header">
+
+<h1>OpenTelemetry Logging Training</h1>
+
+<h3>
+Flask Application Logging With OTel
+</h3>
+
+</div>
+
+
+
+
+
+<div class="section">
+
+<h2>Architecture</h2>
+
+
+<div class="box">
+User
+</div>
+
+→
+
+<div class="box">
+Flask API
+</div>
+
+→
+
+<div class="box">
+OpenTelemetry Logs
+</div>
+
+→
+
+<div class="box">
+Collector / Alloy
+</div>
+
+→
+
+<div class="box">
+Loki / Backend
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>1. Why Logging Is Needed?</h2>
+
+
+<p>
+
+Imagine we have a shopping application.
+
+</p>
+
+
+
+<pre>
+
+API:
+
+/cart
+
+
+/checkout
+
+
+
+User says:
+
+"My payment failed"
+
+
+
+Question:
+
+
+What happened?
+
+When happened?
+
+Which service failed?
+
+
+Answer:
+
+
+Logs help investigation
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>2. Flask Without Proper Logging</h2>
+
+
+<p>
+Normal application:
+</p>
+
+
+<pre>
+
+from flask import Flask
+
+
+app = Flask(__name__)
+
+
+
+@app.route("/checkout")
+
+def checkout():
+
+
+    print("checkout failed")
+
+
+    return "error"
+
+
+
+app.run(port=5000)
+
+
+</pre>
+
+
+Problem:
+
+
+<pre>
+
+checkout failed
+
+
+</pre>
+
+
+We don't know:
+
+
+<pre>
+
+Which user?
+
+Which request?
+
+Which service?
+
+Which trace?
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>3. Unstructured Logs</h2>
+
+
+<p>
+
+Plain text logs are called unstructured logs.
+
+</p>
+
+
+Example:
+
+
+<pre>
+
+ERROR checkout failed for user john
+
+
+</pre>
+
+
+
+Problems:
+
+
+<pre>
+
+Hard to search
+
+Hard to filter
+
+Hard for machines to understand
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>4. Structured JSON Logging</h2>
+
+
+
+<p>
+
+Modern microservices write JSON logs.
+
+</p>
+
+
+
+Example:
+
+
+
+<pre>
+
+{
+
+ "level":"ERROR",
+
+ "service":"cart-service",
+
+ "message":"checkout failed",
+
+ "user":"john",
+
+ "status":500
+
+}
+
+
+</pre>
+
+
+
+Benefits:
+
+
+<pre>
+
+Easy searching
+
+
+Find:
+
+status=500
+
+
+Find:
+
+service=cart-service
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>5. Flask JSON Logging Example</h2>
+
+
+
+<pre>
+
+import logging
+
+import json
+
+
+
+logger=logging.getLogger()
+
+logger.setLevel(logging.INFO)
+
+
+
+
+@app.route("/cart")
+
+def cart():
+
+
+    log={
+
+      "event":"cart_added",
+
+      "user":"arun",
+
+      "service":"cart"
+
+    }
+
+
+
+    logger.info(json.dumps(log))
+
+
+
+    return "added"
+
+
+</pre>
+
+
+
+Output:
+
+
+
+<pre>
+
+{
+
+"event":"cart_added",
+
+"user":"arun",
+
+"service":"cart"
+
+}
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>6. Contextual Logging</h2>
+
+
+<p>
+
+One user request travels through many services.
+
+We need one ID to connect everything.
+
+</p>
+
+
+
+Flow:
+
+
+
+<pre>
+
+User Request
+
+
+     |
+
+
+Flask
+
+
+     |
+
+
+Payment Service
+
+
+     |
+
+
+Database
+
+
+</pre>
+
+
+
+
+Without Trace ID:
+
+
+
+<pre>
+
+cart completed
+
+
+payment failed
+
+
+database timeout
+
+
+</pre>
+
+
+
+
+With Trace ID:
+
+
+
+<pre>
+
+{
+
+trace_id:"abc123",
+
+service:"cart",
+
+message:"cart created"
+
+}
+
+
+
+{
+
+trace_id:"abc123",
+
+service:"payment",
+
+message:"payment failed"
+
+}
+
+
+</pre>
+
+
+Now we know both logs belong to same request.
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>7. What Is span_id?</h2>
+
+
+
+<p>
+
+A trace contains multiple operations.
+
+Each operation has a span.
+
+</p>
+
+
+
+Example:
+
+
+
+<pre>
+
+Trace ID: 12345
+
+
+       Checkout Request
+
+
+              |
+
+
+        ----------------
+
+
+        |              |
+
+
+   DB Query        Payment API
+
+
+
+Span ID 1       Span ID 2
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>8. OpenTelemetry Logging API</h2>
+
+
+
+Install:
+
+
+
+<pre>
+
+pip install opentelemetry-sdk
+
+
+pip install opentelemetry-api
+
+
+pip install opentelemetry-instrumentation-flask
+
+
+</pre>
+
+
+
+Flask Example:
+
+
+
+<pre>
+
+
+from flask import Flask
+
+
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+
+
+
+app=Flask(__name__)
+
+
+
+FlaskInstrumentor().instrument_app(app)
+
+
+
+
+@app.route("/checkout")
+
+def checkout():
+
+
+
+    logger.info(
+
+       "checkout started"
+
+    )
+
+
+
+    return "success"
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>9. Adding Attributes To Logs</h2>
+
+
+
+<p>
+
+Attributes give more information.
+
+</p>
+
+
+
+Example:
+
+
+
+<pre>
+
+logger.info(
+
+"payment success",
+
+
+extra={
+
+"user_id":"101",
+
+"order_id":"500",
+
+"amount":"2000"
+
+}
+
+)
+
+
+</pre>
+
+
+
+Log:
+
+
+
+<pre>
+
+{
+
+message:"payment success",
+
+user_id:"101",
+
+order_id:"500",
+
+amount:"2000"
+
+}
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>10. Microservice Logging Best Practices</h2>
+
+
+
+<pre>
+
+Always use JSON logs
+
+
+Always include service name
+
+
+Always include trace_id
+
+
+Never log passwords
+
+
+Add request id
+
+
+Use proper log levels
+
+
+
+INFO
+
+WARN
+
+ERROR
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>11. Dockerfile</h2>
+
+
+
+<pre>
+
+FROM python:3.11
+
+
+WORKDIR /app
+
+
+COPY requirements.txt .
+
+
+RUN pip install -r requirements.txt
+
+
+COPY . .
+
+
+CMD ["python","app.py"]
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>12. docker-compose.yml</h2>
+
+
+<pre>
+
+version: "3"
+
+
+services:
+
+
+ flask:
+
+
+   build: .
+
+
+   ports:
+
+
+     - "5000:5000"
+
+
+
+ alloy:
+
+
+   image:grafana/alloy
+
+
+   ports:
+
+
+     - "4317:4317"
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>Complete Logging Flow</h2>
+
+
+
+<pre>
+
+
+User calls checkout
+
+
+        |
+
+
+Flask creates JSON log
+
+
+        |
+
+
+OTel adds trace_id span_id
+
+
+        |
+
+
+Alloy receives logs
+
+
+        |
+
+
+Logging backend stores
+
+
+        |
+
+
+Developer searches issue
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+</body>
+
+</html>
