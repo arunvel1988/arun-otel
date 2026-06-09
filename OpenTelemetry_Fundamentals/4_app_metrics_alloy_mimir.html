@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>OpenTelemetry Metrics With Flask Training</title>
+
+<style>
+
+body{
+    margin:0;
+    background:#0b1020;
+    color:white;
+    font-family:Arial;
+}
+
+.header{
+    background:#0066cc;
+    padding:30px;
+    text-align:center;
+}
+
+.section{
+    margin:25px;
+    padding:25px;
+    background:#17203d;
+    border-radius:12px;
+}
+
+h2{
+    color:#00d9ff;
+}
+
+pre{
+    background:#000;
+    color:#00ff99;
+    padding:20px;
+    border-radius:10px;
+    overflow:auto;
+}
+
+.box{
+    display:inline-block;
+    background:#27345f;
+    padding:20px;
+    margin:10px;
+    border-radius:10px;
+    border:1px solid #00d9ff;
+}
+
+button{
+    padding:12px 30px;
+    font-size:18px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="header">
+
+<h1>OpenTelemetry Metrics Training</h1>
+
+<h3>
+Flask + OTel Metrics SDK + Alloy + Prometheus + Mimir
+</h3>
+
+</div>
+
+
+
+
+<div class="section">
+
+<h2>Architecture</h2>
+
+
+<div class="box">Flask Application</div>
+
+→
+
+<div class="box">OpenTelemetry SDK</div>
+
+→
+
+<div class="box">Metrics Endpoint</div>
+
+→
+
+<div class="box">Grafana Alloy</div>
+
+→
+
+<div class="box">Mimir</div>
+
+
+<p>
+The Flask application generates metrics.
+Alloy collects them and forwards them to storage.
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>1. Flask Application Without Monitoring</h2>
+
+
+<p>
+This is a simple shopping application.
+</p>
+
+
+<pre>
+
+from flask import Flask
+
+
+app = Flask(__name__)
+
+
+@app.route("/cart")
+def cart():
+
+    return "Product added"
+
+
+@app.route("/checkout")
+def checkout():
+
+    return "Order completed"
+
+
+
+app.run(
+host="0.0.0.0",
+port=5000
+)
+
+</pre>
+
+
+
+<p>
+Problem:
+We don't know:
+
+- how many cart requests happened
+
+- how many checkout happened
+
+- API performance
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>2. Add OpenTelemetry Metrics SDK</h2>
+
+
+
+<p>
+Install dependencies:
+</p>
+
+
+
+<pre>
+
+pip install flask
+
+pip install opentelemetry-sdk
+
+pip install prometheus-client
+
+</pre>
+
+
+
+
+<p>
+Now we create metrics inside Flask.
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>3. Custom Business Metrics Example</h2>
+
+
+
+<p>
+
+Business requirement:
+
+Count how many products users add into cart.
+
+</p>
+
+
+
+
+<pre>
+
+from flask import Flask
+
+from prometheus_client import Counter
+from prometheus_client import generate_latest
+
+
+
+app = Flask(__name__)
+
+
+
+cart_counter = Counter(
+    "cart_count",
+    "Total cart additions"
+)
+
+
+
+checkout_counter = Counter(
+    "checkout_count",
+    "Total checkout completed"
+)
+
+
+
+
+@app.route("/cart")
+def cart():
+
+    cart_counter.inc()
+
+    return "Added to cart"
+
+
+
+
+@app.route("/checkout")
+def checkout():
+
+    checkout_counter.inc()
+
+    return "Checkout success"
+
+
+
+
+
+@app.route("/metrics")
+def metrics():
+
+    return generate_latest()
+
+
+
+app.run(
+host="0.0.0.0",
+port=5000
+)
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>Generated Metrics Output</h2>
+
+
+<p>
+When user calls:
+</p>
+
+
+<pre>
+
+curl localhost:5000/cart
+
+curl localhost:5000/cart
+
+curl localhost:5000/checkout
+
+
+</pre>
+
+
+<p>
+Metrics endpoint:
+</p>
+
+
+<pre>
+
+curl localhost:5000/metrics
+
+
+OUTPUT:
+
+
+cart_count_total 2
+
+
+checkout_count_total 1
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>4. Automatic Metrics</h2>
+
+
+
+<p>
+OpenTelemetry can automatically capture framework metrics.
+</p>
+
+
+
+Examples:
+
+
+
+<pre>
+
+HTTP REQUEST COUNT
+
+
+http_server_requests_total
+
+
+
+API LATENCY
+
+
+http_server_duration_seconds
+
+
+
+PROCESS DETAILS
+
+
+process_cpu_usage
+
+
+process_memory_usage
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>5. Dockerfile For Flask Application</h2>
+
+
+<pre>
+
+FROM python:3.11
+
+
+WORKDIR /app
+
+
+COPY requirements.txt .
+
+
+RUN pip install -r requirements.txt
+
+
+COPY . .
+
+
+CMD ["python","app.py"]
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>6. Grafana Alloy Collector</h2>
+
+
+<p>
+Alloy finds Flask metrics endpoint and scrapes it.
+</p>
+
+
+
+<pre>
+
+Flask exposes:
+
+
+http://flask:5000/metrics
+
+
+
+Alloy reads this every few seconds
+
+
+</pre>
+
+
+
+Alloy Configuration:
+
+
+
+<pre>
+
+prometheus.scrape "flask" {
+
+
+targets = [
+
+{
+
+"__address__"="flask:5000"
+
+}
+
+]
+
+
+
+forward_to = [
+
+prometheus.remote_write.mimir.receiver
+
+]
+
+
+}
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>7. Processing And Relabeling</h2>
+
+
+
+Before:
+
+
+
+<pre>
+
+cart_count_total
+{
+app="flask"
+}
+
+
+</pre>
+
+
+
+After Alloy:
+
+
+
+<pre>
+
+cart_count_total
+{
+
+app="flask"
+
+team="shopping"
+
+environment="production"
+
+}
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>8. Mimir Long Term Storage</h2>
+
+
+
+<p>
+Prometheus is normally short retention.
+Mimir stores huge metric data for long periods.
+</p>
+
+
+Flow:
+
+
+<pre>
+
+Flask
+
+
+   |
+
+
+OpenTelemetry
+
+
+   |
+
+
+Alloy
+
+
+   |
+
+
+Remote Write
+
+
+   |
+
+
+Grafana Mimir
+
+
+   |
+
+
+Grafana Dashboard
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>9. Mimir Tenant Example</h2>
+
+
+<p>
+One Mimir installation can serve multiple teams.
+</p>
+
+
+
+<pre>
+
+
+Company Mimir
+
+
+      |
+
+
+----------------
+
+
+|              |
+
+
+Shopping       Payment
+
+
+
+</pre>
+
+
+
+Alloy sends tenant:
+
+
+
+<pre>
+
+headers = {
+
+"X-Scope-OrgID"="shopping"
+
+}
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>10. Docker Compose Complete Lab</h2>
+
+
+
+<pre>
+
+version: "3"
+
+
+services:
+
+
+ flask:
+
+
+   build: .
+
+
+   ports:
+
+
+    - "5000:5000"
+
+
+
+
+ alloy:
+
+
+   image: grafana/alloy:latest
+
+
+   volumes:
+
+
+    - ./config.alloy:/etc/alloy/config.alloy
+
+
+
+
+ mimir:
+
+
+   image: grafana/mimir
+
+
+   ports:
+
+
+    - "9009:9009"
+
+
+
+ prometheus:
+
+
+   image: prom/prometheus
+
+
+   ports:
+
+
+    - "9090:9090"
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>Student Lab Testing</h2>
+
+
+
+<pre>
+
+docker compose up
+
+
+
+Generate traffic:
+
+
+curl localhost:5000/cart
+
+
+curl localhost:5000/cart
+
+
+curl localhost:5000/checkout
+
+
+
+Check:
+
+
+curl localhost:5000/metrics
+
+
+
+Result:
+
+
+cart_count_total 2
+
+
+checkout_count_total 1
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+</body>
+
+</html>
