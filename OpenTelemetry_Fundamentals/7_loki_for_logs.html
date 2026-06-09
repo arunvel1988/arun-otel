@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Loki Logs Training</title>
+
+<style>
+
+body{
+    margin:0;
+    background:#0b1020;
+    color:white;
+    font-family:Arial;
+}
+
+.header{
+
+    background:#005bbb;
+    text-align:center;
+    padding:30px;
+
+}
+
+
+.section{
+
+    background:#17203d;
+    margin:25px;
+    padding:25px;
+    border-radius:12px;
+
+}
+
+
+h2{
+
+    color:#00d9ff;
+
+}
+
+
+pre{
+
+    background:black;
+    color:#00ff99;
+    padding:20px;
+    border-radius:10px;
+    overflow:auto;
+
+}
+
+
+.box{
+
+    display:inline-block;
+    background:#27345f;
+    padding:20px;
+    margin:10px;
+    border-radius:10px;
+
+}
+
+
+</style>
+
+
+</head>
+
+
+<body>
+
+
+
+
+
+<div class="header">
+
+<h1>Grafana Loki Logging Training</h1>
+
+<h3>
+
+Flask Logs + Alloy + Loki + LogQL + Trace Correlation
+
+</h3>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>1. What Problem Loki Solves?</h2>
+
+
+
+<p>
+
+Imagine a shopping application.
+
+</p>
+
+
+
+<pre>
+
+Services:
+
+
+cart-service
+
+
+payment-service
+
+
+order-service
+
+
+
+Every service creates thousands of logs.
+
+
+
+Question:
+
+
+Why checkout failed?
+
+
+Which service failed?
+
+
+Which request failed?
+
+
+
+</pre>
+
+
+
+<p>
+
+Loki stores all application logs and allows searching.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>2. Complete Logging Architecture</h2>
+
+
+
+
+<div class="box">
+
+Flask App
+
+</div>
+
+
+→
+
+
+<div class="box">
+
+Docker Logs
+
+</div>
+
+
+
+→
+
+
+<div class="box">
+
+Alloy
+
+</div>
+
+
+→
+
+
+<div class="box">
+
+Loki
+
+</div>
+
+
+→
+
+
+<div class="box">
+
+Grafana
+
+</div>
+
+
+
+
+
+<pre>
+
+
+User Request
+
+
+      |
+
+
+Flask creates logs
+
+
+      |
+
+
+Alloy collects
+
+
+      |
+
+
+Loki stores
+
+
+      |
+
+
+Grafana queries
+
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>3. Flask Application Creating Logs</h2>
+
+
+
+app.py
+
+
+
+<pre>
+
+
+from flask import Flask
+
+import logging
+
+
+
+app = Flask(__name__)
+
+
+
+logging.basicConfig(
+
+level=logging.INFO,
+
+format="%(levelname)s service=cart %(message)s"
+
+)
+
+
+
+@app.route("/checkout")
+
+def checkout():
+
+
+
+    logging.info(
+
+    "checkout completed user=101 trace_id=abc123"
+
+    )
+
+
+
+    return "success"
+
+
+
+
+
+app.run(
+
+host="0.0.0.0",
+
+port=5000
+
+)
+
+
+</pre>
+
+
+
+
+Generated Log:
+
+
+
+<pre>
+
+
+INFO service=cart checkout completed user=101 trace_id=abc123
+
+
+</pre>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>4. Loki Architecture</h2>
+
+
+
+<p>
+
+Loki has multiple components.
+
+</p>
+
+
+
+<pre>
+
+
+                Grafana
+
+
+                   |
+
+
+            Query Frontend
+
+
+                   |
+
+
+               Querier
+
+
+                   |
+
+
+------------------------------------------------
+
+
+|                                               |
+
+
+Ingester                                   Storage
+
+
+|                                               |
+
+
+Distributor                              S3/Disk
+
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>5. Distributor Component</h2>
+
+
+
+<p>
+
+First component receiving logs.
+
+</p>
+
+
+
+Flow:
+
+
+
+<pre>
+
+
+Alloy
+
+
+  |
+
+
+Distributor
+
+
+</pre>
+
+
+
+
+Responsibilities:
+
+
+
+<pre>
+
+
+Accept logs
+
+
+Validate logs
+
+
+Check tenant
+
+
+Split traffic
+
+
+Forward to ingesters
+
+
+
+</pre>
+
+
+Example:
+
+
+
+<pre>
+
+
+Incoming:
+
+
+service=cart
+
+
+message="checkout success"
+
+
+
+Distributor sends it for storage
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>6. Ingester Component</h2>
+
+
+
+
+<p>
+
+Ingester temporarily stores logs.
+
+</p>
+
+
+
+Responsibilities:
+
+
+
+<pre>
+
+
+Receive logs
+
+
+Create chunks
+
+
+Compress logs
+
+
+Upload to storage
+
+
+</pre>
+
+
+
+
+Example:
+
+
+
+<pre>
+
+
+1000 log lines
+
+
+        |
+
+
+Ingester
+
+
+        |
+
+
+chunk-001.gz
+
+
+        |
+
+
+Object Storage
+
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>7. Storage Layer</h2>
+
+
+
+<p>
+
+Loki stores logs cheaply.
+
+</p>
+
+
+
+Examples:
+
+
+
+<pre>
+
+
+Amazon S3
+
+
+Google Cloud Storage
+
+
+Azure Blob
+
+
+Filesystem
+
+
+</pre>
+
+
+
+Stored:
+
+
+
+<pre>
+
+
+Compressed log chunks
+
+
+Index information
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>8. Loki Indexing Model</h2>
+
+
+
+<p>
+
+Very important concept.
+
+Loki does NOT index complete log text.
+
+</p>
+
+
+
+Traditional logging:
+
+
+
+<pre>
+
+
+Elasticsearch:
+
+
+Indexes:
+
+
+Every word
+
+
+Every field
+
+
+Every log
+
+
+</pre>
+
+
+
+
+Loki:
+
+
+
+<pre>
+
+
+Indexes ONLY labels
+
+
+Stores logs compressed
+
+
+</pre>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>9. What Are Labels?</h2>
+
+
+
+<p>
+
+Labels describe logs.
+
+</p>
+
+
+
+
+Example:
+
+
+
+<pre>
+
+
+{
+
+
+app="shopping",
+
+
+service="cart",
+
+
+environment="production"
+
+
+}
+
+
+
+</pre>
+
+
+
+These are indexed.
+
+
+
+Good labels:
+
+
+
+<pre>
+
+
+service
+
+
+environment
+
+
+cluster
+
+
+namespace
+
+
+</pre>
+
+
+
+Bad labels:
+
+
+
+<pre>
+
+
+user_id
+
+
+order_id
+
+
+request_id
+
+
+</pre>
+
+
+
+Because they create millions of streams.
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>10. Loki Streams</h2>
+
+
+
+<p>
+
+A stream is a unique combination of labels.
+
+</p>
+
+
+
+
+Example:
+
+
+
+<pre>
+
+
+Stream 1:
+
+
+{
+
+
+service="cart",
+
+env="prod"
+
+}
+
+
+
+contains:
+
+
+
+log1
+
+
+log2
+
+
+log3
+
+
+
+</pre>
+
+
+
+Another:
+
+
+
+<pre>
+
+
+{
+
+
+service="payment",
+
+env="prod"
+
+}
+
+
+creates another stream.
+
+
+</pre>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>11. LogQL Query Language</h2>
+
+
+
+<p>
+
+LogQL is used to search Loki logs.
+
+</p>
+
+
+
+Find service logs:
+
+
+
+<pre>
+
+
+{service="cart"}
+
+
+
+</pre>
+
+
+
+
+Find errors:
+
+
+
+<pre>
+
+
+{service="cart"}
+
+|= "ERROR"
+
+
+</pre>
+
+
+
+
+
+Search checkout:
+
+
+
+<pre>
+
+
+{service="cart"}
+
+|= "checkout"
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>12. JSON Log Query</h2>
+
+
+
+
+JSON Log:
+
+
+
+<pre>
+
+
+{
+
+
+"service":"cart",
+
+"status":500,
+
+"user":"101"
+
+}
+
+
+</pre>
+
+
+
+
+Query:
+
+
+
+<pre>
+
+
+{service="cart"}
+
+| json
+
+| status=500
+
+
+</pre>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>13. Regex Query</h2>
+
+
+
+
+Log:
+
+
+
+<pre>
+
+
+payment failed user=101
+
+
+</pre>
+
+
+
+Query:
+
+
+
+<pre>
+
+
+{service="payment"}
+
+
+| regexp "user=(?P&lt;user&gt;.*)"
+
+
+</pre>
+
+
+
+Output:
+
+
+
+<pre>
+
+
+user=101
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>14. Logs To Metrics</h2>
+
+
+
+
+<p>
+
+Loki can calculate metrics from logs.
+
+</p>
+
+
+
+
+Example:
+
+
+
+<pre>
+
+
+How many errors in 5 minutes?
+
+
+</pre>
+
+
+
+
+LogQL:
+
+
+
+<pre>
+
+
+count_over_time(
+
+{service="payment"}
+
+|= "ERROR"
+
+[5m]
+
+)
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>15. Correlating Logs With Traces</h2>
+
+
+
+<p>
+
+Logs tell what happened.
+
+
+Traces tell where it happened.
+
+
+</p>
+
+
+
+
+Example:
+
+
+
+<pre>
+
+
+User checkout request
+
+
+Trace ID:
+
+
+abc123
+
+
+</pre>
+
+
+
+Flask log:
+
+
+
+<pre>
+
+
+{
+
+
+message:"payment failed",
+
+
+trace_id:"abc123"
+
+
+}
+
+
+</pre>
+
+
+
+Tempo trace:
+
+
+
+<pre>
+
+
+trace_id abc123
+
+
+
+checkout
+
+
+   |
+
+
+payment
+
+
+   |
+
+
+database
+
+
+</pre>
+
+
+
+Same trace_id connects both.
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>16. Grafana Correlation Flow</h2>
+
+
+
+<pre>
+
+
+Grafana Dashboard
+
+
+       |
+
+
+Open Error Log
+
+
+       |
+
+
+Click trace_id
+
+
+       |
+
+
+Open Tempo Trace
+
+
+       |
+
+
+Find slow service
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>17. Docker Compose Lab</h2>
+
+
+
+<pre>
+
+
+version: "3"
+
+
+
+services:
+
+
+
+flask:
+
+
+ build: .
+
+
+ ports:
+
+ - "5000:5000"
+
+
+
+
+
+alloy:
+
+
+ image:grafana/alloy
+
+
+
+loki:
+
+
+ image:grafana/loki
+
+
+ ports:
+
+ - "3100:3100"
+
+
+
+
+
+grafana:
+
+
+ image:grafana/grafana
+
+
+ ports:
+
+ - "3000:3000"
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>Final End To End Flow</h2>
+
+
+
+<pre>
+
+
+Request comes
+
+
+       |
+
+
+Flask creates log with trace_id
+
+
+       |
+
+
+Alloy collects
+
+
+       |
+
+
+Loki stores by labels
+
+
+       |
+
+
+Developer searches using LogQL
+
+
+       |
+
+
+Trace ID opens Tempo
+
+
+       |
+
+
+Root cause found
+
+
+
+</pre>
+
+
+</div>
+
+
+
+
+</body>
+
+</html>
