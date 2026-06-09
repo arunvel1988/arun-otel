@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>OpenTelemetry Distributed Tracing Training</title>
+
+<style>
+
+body{
+    margin:0;
+    background:#0b1020;
+    color:white;
+    font-family:Arial;
+}
+
+
+.header{
+
+    background:#005bbb;
+    padding:30px;
+    text-align:center;
+
+}
+
+
+.section{
+
+    background:#17203d;
+    margin:25px;
+    padding:25px;
+    border-radius:12px;
+
+}
+
+
+h2{
+
+    color:#00d9ff;
+
+}
+
+
+pre{
+
+    background:black;
+    color:#00ff99;
+    padding:20px;
+    border-radius:10px;
+    overflow:auto;
+
+}
+
+
+.box{
+
+    display:inline-block;
+    background:#27345f;
+    padding:20px;
+    margin:10px;
+    border-radius:10px;
+
+}
+
+
+</style>
+
+
+</head>
+
+
+
+<body>
+
+
+
+<div class="header">
+
+<h1>Day 4 - Distributed Tracing Fundamentals</h1>
+
+<h3>
+Flask Microservices + OpenTelemetry Tracing
+</h3>
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>1. Why Distributed Tracing?</h2>
+
+
+
+<p>
+
+Modern applications have many services.
+
+One user request travels through multiple applications.
+
+</p>
+
+
+
+<pre>
+
+
+Customer clicks checkout
+
+
+          |
+
+
+      API Gateway
+
+
+          |
+
+
+      Cart Service
+
+
+          |
+
+
+    Payment Service
+
+
+          |
+
+
+       Database
+
+
+
+</pre>
+
+
+
+Problem:
+
+
+
+<pre>
+
+Checkout is slow
+
+
+Question:
+
+
+Which service caused delay?
+
+
+Cart?
+
+
+Payment?
+
+
+Database?
+
+
+</pre>
+
+
+
+Tracing answers this.
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>2. Simple Flask Microservice Example</h2>
+
+
+
+<p>
+
+Two services:
+
+</p>
+
+
+
+<pre>
+
+
+checkout-service
+
+
+        calls
+
+
+payment-service
+
+
+
+</pre>
+
+
+
+
+checkout.py
+
+
+
+<pre>
+
+from flask import Flask
+
+import requests
+
+
+
+app = Flask(__name__)
+
+
+
+@app.route("/checkout")
+
+def checkout():
+
+
+
+    response = requests.get(
+
+       "http://payment:5001/pay"
+
+    )
+
+
+
+    return "checkout completed"
+
+
+
+
+app.run(
+
+host="0.0.0.0",
+
+port=5000
+
+)
+
+
+</pre>
+
+
+
+
+payment.py
+
+
+
+<pre>
+
+
+from flask import Flask
+
+
+app=Flask(__name__)
+
+
+
+@app.route("/pay")
+
+def pay():
+
+
+    return "payment success"
+
+
+
+
+app.run(
+
+host="0.0.0.0",
+
+port=5001
+
+)
+
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>3. What Is A Trace?</h2>
+
+
+<p>
+
+A trace represents the complete journey of one request.
+
+</p>
+
+
+
+Example:
+
+
+
+<pre>
+
+
+User Checkout Request
+
+
+Trace ID:
+
+
+4bf92f3577b34da6
+
+
+
+               TRACE
+
+
+------------------------------------------------
+
+
+Checkout Service
+
+
+Payment Service
+
+
+Database Query
+
+
+
+</pre>
+
+
+
+All operations share the same Trace ID.
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>4. What Is A Span?</h2>
+
+
+
+<p>
+
+A span represents one operation inside a trace.
+
+</p>
+
+
+
+
+Example:
+
+
+
+<pre>
+
+
+Trace ID: abc123
+
+
+
+
+Checkout Request
+
+       |
+
+       |
+
+       +---- Span 1
+
+       |
+       |
+
+
+Payment Call
+
+       |
+
+       +---- Span 2
+
+
+       |
+
+
+Database Query
+
+
+       +---- Span 3
+
+
+
+
+</pre>
+
+
+
+Every span contains:
+
+
+
+<pre>
+
+
+span_id
+
+
+start time
+
+
+end time
+
+
+duration
+
+
+attributes
+
+
+events
+
+
+
+</pre>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>5. Span Timeline</h2>
+
+
+
+<p>
+
+Tracing tools show execution time.
+
+</p>
+
+
+
+
+Example:
+
+
+
+<pre>
+
+
+Trace: checkout
+
+
+
+checkout-service
+
+|-----------------------|
+
+0ms                    800ms
+
+
+
+
+payment-service
+
+      |-------------|
+
+      200ms       700ms
+
+
+
+
+database
+
+            |----|
+
+            400ms
+
+
+
+</pre>
+
+
+
+Now developer knows database was slow.
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>6. Trace ID And Span ID</h2>
+
+
+
+<p>
+
+Trace ID connects the complete request.
+
+Span ID identifies individual work.
+
+</p>
+
+
+
+Example:
+
+
+
+<pre>
+
+
+TRACE
+
+
+trace_id = abc123
+
+
+
+
+SPAN 1
+
+
+service=checkout
+
+span_id=111
+
+
+
+
+SPAN 2
+
+
+service=payment
+
+span_id=222
+
+
+
+SPAN 3
+
+
+service=database
+
+span_id=333
+
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>7. OpenTelemetry Flask Instrumentation</h2>
+
+
+
+Install:
+
+
+
+<pre>
+
+
+pip install opentelemetry-sdk
+
+
+pip install opentelemetry-api
+
+
+pip install opentelemetry-instrumentation-flask
+
+
+pip install opentelemetry-instrumentation-requests
+
+
+
+</pre>
+
+
+
+
+
+Code:
+
+
+
+<pre>
+
+
+from flask import Flask
+
+
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+
+
+
+app=Flask(__name__)
+
+
+
+FlaskInstrumentor().instrument_app(app)
+
+
+
+
+@app.route("/checkout")
+
+
+def checkout():
+
+
+
+    return "success"
+
+
+
+</pre>
+
+
+
+Now spans are automatically created.
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>8. Attributes</h2>
+
+
+
+<p>
+
+Attributes are extra information attached to spans.
+
+</p>
+
+
+
+Example:
+
+
+
+<pre>
+
+
+Span:
+
+
+checkout
+
+
+
+
+Attributes:
+
+
+
+user.id = 100
+
+
+cart.items = 5
+
+
+region = india
+
+
+
+</pre>
+
+
+
+
+Python:
+
+
+
+<pre>
+
+
+from opentelemetry import trace
+
+
+
+span = trace.get_current_span()
+
+
+
+span.set_attribute(
+
+"user.id",
+
+"100"
+
+)
+
+
+
+span.set_attribute(
+
+"cart.items",
+
+5
+
+)
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>9. Events Inside Span</h2>
+
+
+
+<p>
+
+Events are important moments happening inside a span.
+
+</p>
+
+
+
+Example:
+
+
+
+<pre>
+
+
+Checkout Span
+
+
+
+Start
+
+
+ |
+
+
+Event:
+
+
+cart validated
+
+
+
+ |
+
+
+Event:
+
+
+payment started
+
+
+
+ |
+
+
+End
+
+
+
+</pre>
+
+
+
+Python:
+
+
+
+<pre>
+
+
+span.add_event(
+
+"payment started"
+
+)
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>10. Span Links</h2>
+
+
+
+<p>
+
+Links connect related traces.
+
+Used in async systems.
+
+</p>
+
+
+
+Example:
+
+
+
+<pre>
+
+
+Order Request Trace
+
+
+       |
+
+
+creates message
+
+
+       |
+
+
+Kafka
+
+
+       |
+
+
+Shipping Trace
+
+
+
+Both traces are linked.
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>11. Context Propagation</h2>
+
+
+
+<p>
+
+Problem:
+
+How does payment service know checkout trace id?
+
+</p>
+
+
+
+Without propagation:
+
+
+
+<pre>
+
+
+checkout trace = abc
+
+
+payment trace = xyz
+
+
+</pre>
+
+
+
+They look unrelated.
+
+
+
+With propagation:
+
+
+
+<pre>
+
+
+checkout trace = abc
+
+
+payment trace = abc
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>12. W3C TraceContext</h2>
+
+
+
+<p>
+
+OpenTelemetry follows W3C standard headers.
+
+</p>
+
+
+
+HTTP request contains:
+
+
+
+<pre>
+
+
+traceparent:
+
+
+00-4bf92f3577b34da6-00f067aa0ba902b7-01
+
+
+
+</pre>
+
+
+
+Meaning:
+
+
+
+<pre>
+
+
+version
+
+
+trace id
+
+
+span id
+
+
+flags
+
+
+
+</pre>
+
+
+
+Flow:
+
+
+
+<pre>
+
+
+Checkout Service
+
+
+
+adds header:
+
+
+
+traceparent
+
+
+
+        |
+
+
+
+Payment Service
+
+
+
+reads header
+
+
+
+continues same trace
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>13. Docker Compose Lab</h2>
+
+
+
+<pre>
+
+
+version: "3"
+
+
+
+services:
+
+
+
+checkout:
+
+
+ build: ./checkout
+
+
+ ports:
+
+
+ - "5000:5000"
+
+
+
+
+payment:
+
+
+ build: ./payment
+
+
+ ports:
+
+
+ - "5001:5001"
+
+
+
+
+tempo:
+
+
+ image:grafana/tempo
+
+
+
+
+grafana:
+
+
+ image:grafana/grafana
+
+
+ ports:
+
+
+ - "3000:3000"
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="section">
+
+
+<h2>Complete Trace Journey</h2>
+
+
+
+<pre>
+
+
+Customer
+
+
+   |
+
+
+Checkout Flask API
+
+
+   |
+
+Span Created
+
+
+   |
+
+
+Trace Context Forwarded
+
+
+   |
+
+
+Payment Flask API
+
+
+   |
+
+
+New Span Created
+
+
+   |
+
+
+Tempo Stores Trace
+
+
+   |
+
+
+Grafana Shows Timeline
+
+
+
+</pre>
+
+
+
+</div>
+
+
+
+
+</body>
+
+</html>
