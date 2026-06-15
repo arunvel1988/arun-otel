@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Log Parsing with Alloy</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+.header{
+ background:linear-gradient(135deg,#1e40af,#581c87);
+ padding:50px;
+ text-align:center;
+}
+
+.header h1{
+ font-size:44px;
+}
+
+.header p{
+ font-size:22px;
+}
+
+section{
+ padding:40px 70px;
+}
+
+.card{
+ background:#1e293b;
+ padding:30px;
+ margin-bottom:30px;
+ border-radius:18px;
+}
+
+h2{
+ color:#93c5fd;
+}
+
+h3{
+ color:#60a5fa;
+}
+
+.code{
+ background:#020617;
+ color:#86efac;
+ padding:20px;
+ border-radius:12px;
+ white-space:pre-line;
+}
+
+.flow{
+ background:#020617;
+ padding:25px;
+ border-radius:15px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:15px;
+ margin:20px 0;
+}
+
+.box{
+ background:#334155;
+ padding:15px 35px;
+ border-radius:12px;
+ min-width:450px;
+ text-align:center;
+}
+
+.arrow{
+ color:#38bdf8;
+ font-size:30px;
+}
+
+table{
+ width:100%;
+ border-collapse:collapse;
+}
+
+td,th{
+ border:1px solid #475569;
+ padding:15px;
+}
+
+th{
+ background:#334155;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+<h1>Log Parsing with Alloy</h1>
+
+<p>
+Turning raw log lines into searchable information
+</p>
+
+</div>
+
+<section>
+
+
+
+
+
+<div class="card">
+
+<h2>Why Parsing Is Required?</h2>
+
+<p>
+
+Applications produce logs as plain text.
+
+</p>
+
+Example:
+
+<div class="code">
+
+2026-06-15 10:00:00 ERROR Payment Failed User=123 Order=999
+
+</div>
+
+<p>
+
+Humans can understand this.
+
+Computers struggle to understand individual pieces.
+
+</p>
+
+Questions:
+
+<ul>
+
+<li>Which user failed?</li>
+
+<li>Which order failed?</li>
+
+<li>How many ERROR logs?</li>
+
+<li>Show only Order=999 logs</li>
+
+</ul>
+
+<p>
+
+Parsing converts one text line into structured fields.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Before and After Parsing</h2>
+
+<h3>Before Parsing</h3>
+
+<div class="code">
+
+"2026-06-15 10:00:00 ERROR Payment Failed User=123 Order=999"
+
+</div>
+
+<h3>After Parsing</h3>
+
+<div class="code">
+
+timestamp = 2026-06-15 10:00:00
+
+level = ERROR
+
+message = Payment Failed
+
+user_id = 123
+
+order_id = 999
+
+</div>
+
+<p>
+
+Now Grafana and Loki can search these fields individually.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Where Parsing Happens?</h2>
+
+<div class="flow">
+
+<div class="box">
+
+Application writes logs
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Alloy Receiver
+
+Collects logs
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Processor
+
+Parse logs
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Loki
+
+Stores structured logs
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Grafana
+
+Search and Filter
+
+</div>
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>1. Regex Parsing</h2>
+
+<p>
+
+Regex means pattern matching.
+
+</p>
+
+<p>
+
+Useful when logs are plain text.
+
+</p>
+
+Raw log:
+
+<div class="code">
+
+ERROR Payment Failed User=123 Order=999
+
+</div>
+
+Regex:
+
+<div class="code">
+
+(ERROR) (.*) User=(\d+) Order=(\d+)
+
+</div>
+
+Extracted fields:
+
+<div class="code">
+
+level = ERROR
+
+message = Payment Failed
+
+user_id = 123
+
+order_id = 999
+
+</div>
+
+<p>
+
+Alloy can use regex processors to extract these fields automatically.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Ecommerce Regex Example</h2>
+
+<div class="code">
+
+Raw Log:
+
+
+INFO Checkout Success User=500 Product=Football
+
+
+</div>
+
+After Regex Parsing:
+
+<div class="code">
+
+level = INFO
+
+action = Checkout Success
+
+user_id = 500
+
+product = Football
+
+</div>
+
+<p>
+
+Now Grafana can search:
+
+</p>
+
+<div class="code">
+
+user_id=500
+
+</div>
+
+or
+
+<div class="code">
+
+product=Football
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Problem With Regex</h2>
+
+<p>
+
+Regex works but becomes difficult as log formats change.
+
+</p>
+
+Example:
+
+<div class="code">
+
+INFO Payment Failed User=100
+
+ERROR User=100 Payment Failed
+
+WARNING Payment Failure User=100
+
+</div>
+
+<p>
+
+One regex may not work for all formats.
+
+</p>
+
+<p>
+
+This is why modern applications prefer JSON logging.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>2. JSON Parsing</h2>
+
+<p>
+
+JSON logs are already structured.
+
+</p>
+
+Application log:
+
+<div class="code">
+
+{
+
+ "level":"ERROR",
+
+ "user_id":"123",
+
+ "order_id":"999",
+
+ "message":"Payment Failed"
+
+}
+
+</div>
+
+<p>
+
+Alloy simply reads the fields.
+
+No complex regex needed.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>JSON Parsing Example</h2>
+
+<div class="code">
+
+Application Log:
+
+
+{
+
+ "service":"checkout",
+
+ "user_id":"500",
+
+ "amount":"2500",
+
+ "message":"Checkout Complete"
+
+}
+
+</div>
+
+Parsed Result:
+
+<div class="code">
+
+service = checkout
+
+user_id = 500
+
+amount = 2500
+
+message = Checkout Complete
+
+</div>
+
+<p>
+
+This is why JSON logging is considered best practice.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Regex vs JSON</h2>
+
+<table>
+
+<tr>
+
+<th>Regex</th>
+
+<th>JSON</th>
+
+</tr>
+
+<tr>
+
+<td>Works on text logs</td>
+
+<td>Works on structured logs</td>
+
+</tr>
+
+<tr>
+
+<td>Harder to maintain</td>
+
+<td>Easy to maintain</td>
+
+</tr>
+
+<tr>
+
+<td>Complex patterns</td>
+
+<td>Direct field extraction</td>
+
+</tr>
+
+<tr>
+
+<td>Legacy applications</td>
+
+<td>Modern applications</td>
+
+</tr>
+
+</table>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>3. Severity Mapping</h2>
+
+<p>
+
+Different applications use different words for log levels.
+
+</p>
+
+Example:
+
+<div class="code">
+
+ERR
+
+ERROR
+
+SEVERE
+
+CRITICAL
+
+FAIL
+
+</div>
+
+<p>
+
+All mean something bad happened.
+
+</p>
+
+<p>
+
+Severity Mapping converts different words into standard levels.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Severity Mapping Example</h2>
+
+Before:
+
+<div class="code">
+
+ERR Payment Failed
+
+SEVERE Database Down
+
+WARN Slow Query
+
+</div>
+
+After Mapping:
+
+<div class="code">
+
+ERROR Payment Failed
+
+ERROR Database Down
+
+WARN Slow Query
+
+</div>
+
+<p>
+
+Now dashboards become consistent.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Why Severity Mapping Matters?</h2>
+
+Imagine three microservices.
+
+<div class="code">
+
+Payment Service:
+
+
+ERR
+
+
+
+
+Checkout Service:
+
+
+ERROR
+
+
+
+
+Database Service:
+
+
+SEVERE
+
+</div>
+
+<p>
+
+Without mapping:
+
+</p>
+
+<div class="code">
+
+Searching ERROR
+
+misses ERR and SEVERE
+
+</div>
+
+<p>
+
+After mapping everything becomes searchable.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Real Ecommerce Flow</h2>
+
+<div class="flow">
+
+<div class="box">
+
+Checkout Service
+
+Writes JSON Log
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Alloy Receiver
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+JSON Processor
+
+Extract Fields
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Severity Mapping
+
+Normalize Levels
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Loki
+
+Store Structured Logs
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Grafana
+
+Search user_id=500
+
+Search level=ERROR
+
+Search order_id=999
+
+</div>
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Memory Rule</h2>
+
+<div class="code">
+
+Parsing:
+
+
+Convert text into fields
+
+
+
+
+Regex:
+
+
+Parse plain text logs
+
+
+
+
+JSON:
+
+
+Parse structured logs
+
+
+
+
+Severity Mapping:
+
+
+Standardize log levels
+
+
+
+
+Result:
+
+
+Searchable logs
+
+Better dashboards
+
+Faster troubleshooting
+
+</div>
+
+</div>
+
+</section>
+
+</body>
+
+</html>
