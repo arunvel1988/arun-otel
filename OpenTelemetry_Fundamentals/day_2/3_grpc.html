@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Understanding gRPC</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+
+.header{
+
+ background:linear-gradient(135deg,#1e3a8a,#581c87);
+
+ padding:50px;
+
+ text-align:center;
+
+}
+
+
+.header h1{
+
+ font-size:45px;
+
+}
+
+
+.header p{
+
+ font-size:22px;
+
+}
+
+
+
+section{
+
+ padding:40px 70px;
+
+}
+
+
+
+.card{
+
+ background:#1e293b;
+
+ padding:30px;
+
+ margin-bottom:30px;
+
+ border-radius:18px;
+
+ box-shadow:0 10px 25px #0008;
+
+}
+
+
+
+h2{
+
+ color:#93c5fd;
+
+}
+
+
+h3{
+
+ color:#60a5fa;
+
+}
+
+
+
+.code{
+
+ background:#020617;
+
+ color:#86efac;
+
+ padding:20px;
+
+ border-radius:12px;
+
+ white-space:pre-line;
+
+ margin-top:15px;
+
+}
+
+
+
+.flow{
+
+ background:#020617;
+
+ padding:20px;
+
+ border-radius:15px;
+
+ text-align:center;
+
+ font-size:20px;
+
+ margin:20px 0;
+
+}
+
+
+
+table{
+
+ width:100%;
+
+ border-collapse:collapse;
+
+ margin-top:20px;
+
+}
+
+
+
+td,th{
+
+ border:1px solid #475569;
+
+ padding:15px;
+
+}
+
+
+th{
+
+ background:#334155;
+
+}
+
+
+.example{
+
+ background:#334155;
+
+ border-left:5px solid #38bdf8;
+
+ padding:20px;
+
+ margin-top:20px;
+
+}
+
+
+</style>
+
+
+</head>
+
+
+<body>
+
+
+
+<div class="header">
+
+<h1>Understanding gRPC</h1>
+
+<p>
+Fast communication between modern microservices
+</p>
+
+</div>
+
+
+
+
+
+<section>
+
+
+
+<div class="card">
+
+
+<h2>What Problem Does gRPC Solve?</h2>
+
+
+<p>
+
+Imagine an ecommerce application.
+
+Initially everything is inside one application.
+
+</p>
+
+
+<div class="flow">
+
+Ecommerce Application
+
+<br>
+
+User
+
+Cart
+
+Payment
+
+Inventory
+
+Shipping
+
+
+</div>
+
+
+
+<p>
+
+As the company grows, teams split this into separate services.
+
+</p>
+
+
+<div class="flow">
+
+User Service
+
+↓
+
+Cart Service
+
+↓
+
+Payment Service
+
+↓
+
+Shipping Service
+
+</div>
+
+
+
+<p>
+
+Now one question appears:
+
+How do these services communicate quickly and reliably?
+
+</p>
+
+
+<p>
+
+One solution is gRPC.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>What is gRPC?</h2>
+
+
+
+<p>
+
+gRPC stands for Google Remote Procedure Call.
+
+</p>
+
+
+<p>
+
+It allows one application to call a function running inside another application as if it was a local function.
+
+</p>
+
+
+
+<div class="example">
+
+
+Normal thinking:
+
+
+Payment service is another application.
+
+
+gRPC thinking:
+
+
+payment.createPayment()
+
+
+looks like a local method call.
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Simple Ecommerce Example</h2>
+
+
+
+<p>
+
+Customer clicks checkout.
+
+</p>
+
+
+
+<div class="flow">
+
+Checkout Service
+
+<br>
+
+calls
+
+<br>
+
+Payment Service
+
+</div>
+
+
+
+Without gRPC:
+
+
+<div class="code">
+
+
+HTTP POST
+
+
+/payment
+
+
+JSON request
+
+
+JSON response
+
+
+</div>
+
+
+
+With gRPC:
+
+
+<div class="code">
+
+
+paymentService.CreatePayment(order)
+
+
+returns
+
+
+PaymentResponse
+
+
+</div>
+
+
+
+<p>
+
+Developers work with functions instead of URLs.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>REST API vs gRPC</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>REST</th>
+
+<th>gRPC</th>
+
+</tr>
+
+
+<tr>
+
+<td>Uses HTTP APIs</td>
+
+<td>Uses Remote Procedure Calls</td>
+
+</tr>
+
+
+<tr>
+
+<td>Mostly JSON</td>
+
+<td>Protocol Buffers</td>
+
+</tr>
+
+
+<tr>
+
+<td>Text based</td>
+
+<td>Binary format</td>
+
+</tr>
+
+
+<tr>
+
+<td>Larger payload</td>
+
+<td>Smaller payload</td>
+
+</tr>
+
+
+<tr>
+
+<td>Usually slower</td>
+
+<td>Very fast</td>
+
+</tr>
+
+
+<tr>
+
+<td>Browser friendly</td>
+
+<td>Microservice friendly</td>
+
+</tr>
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Protocol Buffers</h2>
+
+
+<p>
+
+gRPC normally does not send JSON.
+
+It uses Protocol Buffers.
+
+</p>
+
+
+<p>
+
+Protocol Buffer is a contract between services.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+
+payment.proto
+
+
+
+service PaymentService {
+
+
+ rpc CreatePayment(PaymentRequest)
+
+ returns (PaymentResponse);
+
+
+}
+
+
+
+
+
+message PaymentRequest {
+
+
+ string order_id = 1;
+
+
+ double amount = 2;
+
+
+}
+
+
+</div>
+
+
+
+
+<p>
+
+Both client and server understand this contract.
+
+</p>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>How gRPC Works Internally</h2>
+
+
+
+<div class="flow">
+
+Client Application
+
+<br>
+
+↓
+
+<br>
+
+Generated gRPC Client Code
+
+<br>
+
+↓
+
+<br>
+
+Protocol Buffer Binary Data
+
+<br>
+
+↓
+
+<br>
+
+HTTP/2 Network
+
+<br>
+
+↓
+
+<br>
+
+gRPC Server
+
+<br>
+
+↓
+
+<br>
+
+Business Logic
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Types of gRPC Communication</h2>
+
+
+
+<h3>1. Unary RPC</h3>
+
+
+
+<p>
+
+One request gives one response.
+
+</p>
+
+
+<div class="code">
+
+Checkout Service
+
+→ request payment
+
+← payment success
+
+
+</div>
+
+
+
+<h3>2. Server Streaming</h3>
+
+
+
+<p>
+
+One request gives continuous responses.
+
+</p>
+
+
+<div class="code">
+
+Track Delivery
+
+
+Request once
+
+
+Receive location updates continuously
+
+</div>
+
+
+
+
+
+<h3>3. Client Streaming</h3>
+
+
+
+<p>
+
+Client sends many messages.
+
+Server replies once.
+
+</p>
+
+
+
+<div class="code">
+
+Upload large file
+
+
+many chunks sent
+
+
+one response received
+
+
+</div>
+
+
+
+
+
+<h3>4. Bidirectional Streaming</h3>
+
+
+
+<p>
+
+Both sides continuously communicate.
+
+</p>
+
+
+<div class="code">
+
+Live chat
+
+
+Client sends messages
+
+
+Server sends messages
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Where is gRPC Used?</h2>
+
+
+
+<ul>
+
+
+<li>Microservice communication</li>
+
+<li>Kubernetes internal services</li>
+
+<li>High traffic backend systems</li>
+
+<li>Payment systems</li>
+
+<li>Streaming systems</li>
+
+<li>IoT devices</li>
+
+<li>Mobile applications</li>
+
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Real Company Style Example</h2>
+
+
+<div class="flow">
+
+
+Frontend
+
+↓
+
+API Gateway
+
+↓
+
+Order Service
+
+↓
+
+Inventory Service
+
+↓
+
+Payment Service
+
+↓
+
+Shipping Service
+
+
+</div>
+
+
+
+<p>
+
+Internal communication between backend services commonly uses gRPC.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Why Companies Choose gRPC</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Reason</th>
+
+<th>Benefit</th>
+
+</tr>
+
+
+
+<tr>
+
+<td>HTTP/2</td>
+
+<td>Fast communication</td>
+
+</tr>
+
+
+<tr>
+
+<td>Binary protocol</td>
+
+<td>Less network usage</td>
+
+</tr>
+
+
+<tr>
+
+<td>Strong contracts</td>
+
+<td>Fewer integration mistakes</td>
+
+</tr>
+
+
+<tr>
+
+<td>Streaming support</td>
+
+<td>Real time communication</td>
+
+</tr>
+
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>gRPC and OpenTelemetry</h2>
+
+
+
+<p>
+
+OpenTelemetry can automatically observe gRPC communication.
+
+</p>
+
+
+Example:
+
+
+<div class="flow">
+
+Checkout Service
+
+↓
+
+gRPC Call
+
+↓
+
+Payment Service
+
+</div>
+
+
+
+Metrics generated:
+
+
+<div class="code">
+
+
+grpc.client.duration
+
+
+grpc.server.duration
+
+
+grpc.requests
+
+
+grpc.errors
+
+
+</div>
+
+
+
+<p>
+
+These metrics help answer:
+
+</p>
+
+
+<ul>
+
+<li>Which service is slow?</li>
+
+<li>Which gRPC call failed?</li>
+
+<li>How much latency exists between services?</li>
+
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Simple Memory Rule</h2>
+
+
+
+<div class="code">
+
+
+REST:
+
+
+Human friendly API communication
+
+
+
+
+
+gRPC:
+
+
+High speed service-to-service communication
+
+
+
+
+
+Protocol Buffer:
+
+
+Shared contract between applications
+
+
+
+
+
+OpenTelemetry:
+
+
+Measures gRPC performance
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+</section>
+
+
+
+</body>
+
+
+</html>
