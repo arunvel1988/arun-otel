@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Mimir Architecture Deep Dive</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+
+.header{
+
+ background:linear-gradient(135deg,#1e40af,#581c87);
+
+ padding:50px;
+
+ text-align:center;
+
+}
+
+
+.header h1{
+
+ font-size:44px;
+
+}
+
+
+.header p{
+
+ font-size:22px;
+
+}
+
+
+
+section{
+
+ padding:40px 70px;
+
+}
+
+
+
+.card{
+
+ background:#1e293b;
+
+ padding:30px;
+
+ margin-bottom:30px;
+
+ border-radius:18px;
+
+ box-shadow:0 10px 25px #0008;
+
+}
+
+
+
+h2{
+
+ color:#93c5fd;
+
+}
+
+
+
+h3{
+
+ color:#60a5fa;
+
+}
+
+
+
+.code{
+
+ background:#020617;
+
+ color:#86efac;
+
+ padding:20px;
+
+ border-radius:12px;
+
+ white-space:pre-line;
+
+}
+
+
+
+.flow{
+
+ background:#020617;
+
+ padding:25px;
+
+ border-radius:15px;
+
+ display:flex;
+
+ flex-direction:column;
+
+ align-items:center;
+
+ gap:15px;
+
+ margin:20px 0;
+
+}
+
+
+.box{
+
+ background:#334155;
+
+ padding:15px 35px;
+
+ border-radius:12px;
+
+ min-width:350px;
+
+ text-align:center;
+
+}
+
+
+
+.arrow{
+
+ font-size:30px;
+
+ color:#38bdf8;
+
+}
+
+
+
+table{
+
+ width:100%;
+
+ border-collapse:collapse;
+
+ margin-top:20px;
+
+}
+
+
+
+td,th{
+
+ border:1px solid #475569;
+
+ padding:15px;
+
+}
+
+
+
+th{
+
+ background:#334155;
+
+}
+
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+
+<div class="header">
+
+<h1>Grafana Mimir Architecture</h1>
+
+<p>
+Understanding large scale metrics storage
+</p>
+
+</div>
+
+
+
+
+
+<section>
+
+
+
+
+
+<div class="card">
+
+
+<h2>First Question: Do We Need Prometheus and Mimir Both?</h2>
+
+
+
+<p>
+
+Short answer:
+
+No. Mimir can work without Prometheus.
+
+</p>
+
+
+
+<p>
+
+Mimir implements the Prometheus API.
+
+Grafana can query Mimir exactly like Prometheus.
+
+</p>
+
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Grafana
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+PromQL Query
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Mimir
+
+</div>
+
+
+
+</div>
+
+
+
+
+<p>
+
+Grafana does not care if the backend is Prometheus or Mimir.
+
+Both speak PromQL.
+
+</p>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Small Company Architecture</h2>
+
+
+
+<p>
+
+For small systems Prometheus alone is enough.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Ecommerce Application
+
+</div>
+
+
+<div class="arrow">↓ scrape ↓</div>
+
+
+<div class="box">
+
+Prometheus
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Grafana
+
+</div>
+
+
+
+</div>
+
+
+
+
+Good for:
+
+
+
+<ul>
+
+<li>Few applications</li>
+
+<li>Few months retention</li>
+
+<li>Single team</li>
+
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Large Company Architecture Using Mimir</h2>
+
+
+
+<p>
+
+Large companies usually use collectors like Alloy and send directly to Mimir.
+
+</p>
+
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+1000 Microservices
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Grafana Alloy
+
+Collect
+
+Process
+
+Remote Write
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Mimir Cluster
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+S3 / MinIO Storage
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Grafana
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Why Some People Use Prometheus + Mimir Together?</h2>
+
+
+
+<p>
+
+Some companies keep Prometheus for local fast monitoring.
+
+Then Prometheus sends old data to Mimir.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Application
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Prometheus
+
+Recent Metrics
+
+Alerting
+
+</div>
+
+
+
+<div class="arrow">remote write</div>
+
+
+
+<div class="box">
+
+Mimir
+
+Long Term Storage
+
+</div>
+
+
+
+</div>
+
+
+
+
+<p>
+
+But with Alloy, Prometheus is optional.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Mimir Internal Architecture</h2>
+
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Remote Write Request
+
+cart_count_total
+
+checkout_total
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Distributor
+
+Entry Point
+
+Validate Data
+
+Choose Tenant
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Ingester
+
+Receives Metrics
+
+Stores Recent Data
+
+Creates Blocks
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Object Storage
+
+S3 / MinIO
+
+Permanent Storage
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Store Gateway
+
+Reads Old Blocks
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Querier
+
+Executes PromQL
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Grafana Dashboard
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>1. Distributor</h2>
+
+
+
+<p>
+
+Distributor is the front door of Mimir.
+
+</p>
+
+
+
+
+Example:
+
+
+<div class="code">
+
+Alloy sends:
+
+
+cart_count_total=500
+
+
+payment_failed_total=10
+
+</div>
+
+
+
+
+Distributor:
+
+
+<ul>
+
+<li>Receives metrics</li>
+
+<li>Checks if data is valid</li>
+
+<li>Checks tenant</li>
+
+<li>Sends data to ingesters</li>
+
+</ul>
+
+
+
+Think:
+
+
+<div class="code">
+
+Distributor = Reception desk
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>2. Ingester</h2>
+
+
+
+<p>
+
+Ingester handles fresh incoming metrics.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+10:00
+
+
+cart_count=100
+
+
+
+
+10:10
+
+
+cart_count=500
+
+
+
+
+Stored in memory first
+
+
+Later converted into blocks
+
+</div>
+
+
+
+Responsibilities:
+
+
+<ul>
+
+<li>Fast writes</li>
+
+<li>Keep recent data</li>
+
+<li>Create TSDB blocks</li>
+
+<li>Upload blocks</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>3. Object Storage</h2>
+
+
+
+
+<p>
+
+This is the real long term storage.
+
+</p>
+
+
+
+<div class="code">
+
+Mimir does not keep years of data on local disk.
+
+
+
+It stores blocks in:
+
+
+
+AWS S3
+
+
+Google Cloud Storage
+
+
+MinIO
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>4. Store Gateway</h2>
+
+
+
+<p>
+
+Old metrics live in object storage.
+
+Store Gateway knows how to find them.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+Question:
+
+
+Show checkout traffic 6 months ago
+
+
+
+Store Gateway:
+
+
+Find correct blocks from S3
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>5. Querier</h2>
+
+
+
+
+<p>
+
+Querier answers PromQL questions.
+
+</p>
+
+
+
+Grafana asks:
+
+
+
+<div class="code">
+
+increase(
+
+checkout_count_total[30d]
+
+)
+
+</div>
+
+
+
+Querier:
+
+
+<ul>
+
+<li>Reads recent data from ingesters</li>
+
+<li>Reads old data using store gateway</li>
+
+<li>Combines results</li>
+
+
+</ul>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>6. Query Frontend</h2>
+
+
+
+<p>
+
+Used for huge queries.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+Query:
+
+
+1 year payment history
+
+
+
+
+Frontend splits:
+
+
+January query
+
+
+February query
+
+
+March query
+
+
+
+Combines results
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>7. Compactor</h2>
+
+
+
+<p>
+
+Optimizes stored blocks.
+
+</p>
+
+
+
+
+<div class="code">
+
+Before:
+
+
+Thousands of small blocks
+
+
+
+
+After:
+
+
+Few optimized blocks
+
+
+
+
+Queries become faster
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Final Recommendation</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Scenario</th>
+
+<th>Use</th>
+
+</tr>
+
+
+
+<tr>
+
+<td>Learning / Small project</td>
+
+<td>Prometheus only</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Medium production</td>
+
+<td>Prometheus + remote write Mimir</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Large Kubernetes platform</td>
+
+<td>Alloy directly to Mimir</td>
+
+</tr>
+
+
+
+</table>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Memory Rule</h2>
+
+
+
+<div class="code">
+
+Prometheus:
+
+Single server metrics database
+
+
+
+
+
+Mimir:
+
+Distributed Prometheus
+
+
+
+
+
+Distributor:
+
+Accept writes
+
+
+
+
+
+Ingester:
+
+Stores incoming metrics
+
+
+
+
+
+S3 / MinIO:
+
+Keeps years of data
+
+
+
+
+
+Querier:
+
+Reads metrics
+
+
+
+
+
+Grafana:
+
+Shows dashboards
+
+</div>
+
+
+
+</div>
+
+
+
+
+</section>
+
+
+</body>
+
+</html>
