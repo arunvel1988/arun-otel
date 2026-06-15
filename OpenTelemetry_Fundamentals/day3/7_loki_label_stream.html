@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Loki Indexing Model - Labels and Streams</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial,sans-serif;
+ line-height:1.8;
+}
+
+.header{
+ background:linear-gradient(135deg,#1e40af,#581c87);
+ padding:50px;
+ text-align:center;
+}
+
+.header h1{
+ font-size:44px;
+ margin-bottom:10px;
+}
+
+.header p{
+ font-size:22px;
+}
+
+section{
+ padding:40px 70px;
+}
+
+.card{
+ background:#1e293b;
+ padding:30px;
+ margin-bottom:30px;
+ border-radius:18px;
+ box-shadow:0 10px 25px rgba(0,0,0,0.4);
+}
+
+h2{
+ color:#93c5fd;
+}
+
+h3{
+ color:#60a5fa;
+}
+
+.code{
+ background:#020617;
+ color:#86efac;
+ padding:20px;
+ border-radius:12px;
+ white-space:pre-line;
+ margin-top:15px;
+ overflow-x:auto;
+}
+
+.flow{
+ background:#020617;
+ padding:25px;
+ border-radius:15px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:15px;
+ margin-top:20px;
+}
+
+.box{
+ background:#334155;
+ padding:15px 35px;
+ border-radius:12px;
+ min-width:450px;
+ text-align:center;
+}
+
+.arrow{
+ font-size:30px;
+ color:#38bdf8;
+}
+
+table{
+ width:100%;
+ border-collapse:collapse;
+ margin-top:20px;
+}
+
+td,th{
+ border:1px solid #475569;
+ padding:15px;
+}
+
+th{
+ background:#334155;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+<h1>Loki Indexing Model</h1>
+
+<p>
+Understanding Labels, Streams and Why Loki Is Different
+</p>
+
+</div>
+
+<section>
+
+
+
+
+
+<div class="card">
+
+<h2>The Question Loki Tries To Solve</h2>
+
+<p>
+
+Imagine an ecommerce company generating millions of logs every day.
+
+</p>
+
+<div class="code">
+
+Payment failed
+
+Checkout started
+
+Checkout completed
+
+Product added to cart
+
+User logged in
+
+</div>
+
+<p>
+
+How can Loki store and search all these logs efficiently?
+
+</p>
+
+<p>
+
+The answer lies in Labels and Streams.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>How Traditional Log Systems Work</h2>
+
+<p>
+
+Systems like Elasticsearch index every word.
+
+</p>
+
+<div class="code">
+
+ERROR payment failed for order 123
+
+</div>
+
+<p>
+
+Indexed words:
+
+</p>
+
+<div class="code">
+
+ERROR
+
+payment
+
+failed
+
+order
+
+123
+
+</div>
+
+<p>
+
+Every word becomes searchable.
+
+</p>
+
+<p>
+
+This is powerful but expensive.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>How Loki Thinks Differently</h2>
+
+<p>
+
+Loki does NOT index every word.
+
+</p>
+
+<p>
+
+Loki only indexes labels.
+
+</p>
+
+<div class="code">
+
+Labels:
+
+service="payment"
+
+environment="prod"
+
+level="ERROR"
+
+
+
+Message:
+
+Payment failed for order 123
+
+</div>
+
+<p>
+
+Only the labels are indexed.
+
+The message itself is not indexed.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>What Is A Label?</h2>
+
+<p>
+
+A label is metadata describing a log.
+
+</p>
+
+<div class="code">
+
+{
+
+ "service":"payment",
+
+ "environment":"prod",
+
+ "level":"ERROR"
+
+}
+
+</div>
+
+<p>
+
+Labels answer questions like:
+
+</p>
+
+<ul>
+
+<li>Which service generated this log?</li>
+
+<li>Which environment?</li>
+
+<li>What severity level?</li>
+
+</ul>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Real Ecommerce Example</h2>
+
+<div class="code">
+
+{
+
+ "service":"payment",
+
+ "environment":"prod",
+
+ "level":"ERROR",
+
+ "message":"Bank timeout for order 123"
+
+}
+
+</div>
+
+<p>
+
+Loki indexes:
+
+</p>
+
+<div class="code">
+
+service=payment
+
+environment=prod
+
+level=ERROR
+
+</div>
+
+<p>
+
+Loki does NOT index:
+
+</p>
+
+<div class="code">
+
+Bank timeout for order 123
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>What Is A Stream?</h2>
+
+<p>
+
+This is the most important concept in Loki.
+
+</p>
+
+<p>
+
+A Stream is a collection of logs having exactly the same labels.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Stream Example 1</h2>
+
+<div class="code">
+
+Labels:
+
+
+service=payment
+
+environment=prod
+
+level=ERROR
+
+</div>
+
+<p>
+
+All these logs belong to the same stream:
+
+</p>
+
+<div class="code">
+
+Bank timeout order 123
+
+Bank timeout order 456
+
+Card declined order 789
+
+Payment gateway unavailable
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Stream Example 2</h2>
+
+<div class="code">
+
+Labels:
+
+
+service=payment
+
+environment=prod
+
+level=INFO
+
+</div>
+
+<p>
+
+These logs belong to another stream:
+
+</p>
+
+<div class="code">
+
+Payment successful
+
+Payment successful
+
+Payment successful
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Stream Example 3</h2>
+
+<div class="code">
+
+Labels:
+
+
+service=checkout
+
+environment=prod
+
+level=INFO
+
+</div>
+
+<div class="code">
+
+Checkout started
+
+Checkout completed
+
+Checkout started
+
+</div>
+
+<p>
+
+Different labels means different stream.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Visualizing Streams</h2>
+
+<div class="flow">
+
+<div class="box">
+
+Stream A
+
+service=payment
+
+level=ERROR
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Bank timeout
+
+Card declined
+
+Gateway unavailable
+
+</div>
+
+</div>
+
+<br>
+
+<div class="flow">
+
+<div class="box">
+
+Stream B
+
+service=payment
+
+level=INFO
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Payment successful
+
+Payment successful
+
+</div>
+
+</div>
+
+<br>
+
+<div class="flow">
+
+<div class="box">
+
+Stream C
+
+service=checkout
+
+level=INFO
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Checkout started
+
+Checkout completed
+
+</div>
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>What Does Loki Actually Index?</h2>
+
+<p>
+
+Only labels.
+
+</p>
+
+<div class="code">
+
+service=payment
+
+environment=prod
+
+level=ERROR
+
+</div>
+
+<p>
+
+Loki's index points to the location of the logs.
+
+</p>
+
+<div class="code">
+
+service=payment
+
+level=ERROR
+
+↓
+
+Chunk 123
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>How A Query Works</h2>
+
+<p>
+
+Suppose Grafana sends:
+
+</p>
+
+<div class="code">
+
+{service="payment"}
+
+</div>
+
+<p>
+
+Loki does not search every log.
+
+</p>
+
+<p>
+
+Instead it:
+
+</p>
+
+<div class="flow">
+
+<div class="box">
+
+Check Index
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Find Matching Streams
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Read Relevant Chunks
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Return Logs
+
+</div>
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Why Loki Is Cheap</h2>
+
+<table>
+
+<tr>
+
+<th>Elasticsearch</th>
+
+<th>Loki</th>
+
+</tr>
+
+<tr>
+
+<td>Indexes every word</td>
+
+<td>Indexes labels only</td>
+
+</tr>
+
+<tr>
+
+<td>Large index</td>
+
+<td>Small index</td>
+
+</tr>
+
+<tr>
+
+<td>Higher storage cost</td>
+
+<td>Lower storage cost</td>
+
+</tr>
+
+<tr>
+
+<td>Higher memory usage</td>
+
+<td>Lower memory usage</td>
+
+</tr>
+
+</table>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Bad Label Example</h2>
+
+<p>
+
+Never use labels that create millions of unique values.
+
+</p>
+
+<div class="code">
+
+user_id=1001
+
+user_id=1002
+
+user_id=1003
+
+user_id=1004
+
+...
+
+</div>
+
+<p>
+
+Every unique label combination creates a new stream.
+
+</p>
+
+<p>
+
+This causes High Cardinality.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Why High Cardinality Is Dangerous</h2>
+
+<div class="flow">
+
+<div class="box">
+
+1 Million Users
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+1 Million Different user_id Labels
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+1 Million Streams
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Slow Loki
+
+High Memory Usage
+
+</div>
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Good Labels</h2>
+
+<div class="code">
+
+service
+
+environment
+
+level
+
+region
+
+team
+
+version
+
+</div>
+
+<p>
+
+These values do not change frequently.
+
+</p>
+
+<p>
+
+They create a manageable number of streams.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Bad Labels</h2>
+
+<div class="code">
+
+user_id
+
+session_id
+
+request_id
+
+order_id
+
+transaction_id
+
+</div>
+
+<p>
+
+These values are usually unique.
+
+</p>
+
+<p>
+
+Avoid using them as labels.
+
+</p>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Complete Ecommerce Journey</h2>
+
+<div class="flow">
+
+<div class="box">
+
+Application Creates Log
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Alloy Adds Labels
+
+service=payment
+
+level=ERROR
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Loki Creates Stream
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Logs Stored In Chunks
+
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="box">
+
+Grafana Queries Using Labels
+
+</div>
+
+</div>
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Memory Rule</h2>
+
+<div class="code">
+
+Label
+=
+Indexed metadata
+
+
+Stream
+=
+Logs having identical labels
+
+
+Index
+=
+Stores labels only
+
+
+Message
+=
+Not indexed
+
+
+Good Labels
+=
+service, level, environment
+
+
+Bad Labels
+=
+user_id, session_id, order_id
+
+
+Loki
+=
+Indexes labels
+
+
+Elasticsearch
+=
+Indexes everything
+
+</div>
+
+</div>
+
+</section>
+
+</body>
+
+</html>
