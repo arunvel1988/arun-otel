@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Alloy Metric Filtering</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+
+.header{
+
+ background:linear-gradient(135deg,#1e40af,#581c87);
+
+ padding:50px;
+
+ text-align:center;
+
+}
+
+
+.header h1{
+
+ font-size:44px;
+
+}
+
+
+.header p{
+
+ font-size:22px;
+
+}
+
+
+
+section{
+
+ padding:40px 70px;
+
+}
+
+
+
+.card{
+
+ background:#1e293b;
+
+ padding:30px;
+
+ margin-bottom:30px;
+
+ border-radius:18px;
+
+ box-shadow:0 10px 25px #0008;
+
+}
+
+
+
+h2{
+
+ color:#93c5fd;
+
+}
+
+
+h3{
+
+ color:#60a5fa;
+
+}
+
+
+
+.code{
+
+ background:#020617;
+
+ color:#86efac;
+
+ padding:20px;
+
+ border-radius:12px;
+
+ white-space:pre-line;
+
+ margin-top:15px;
+
+}
+
+
+
+.flow{
+
+ background:#020617;
+
+ padding:25px;
+
+ border-radius:15px;
+
+ display:flex;
+
+ flex-direction:column;
+
+ align-items:center;
+
+ gap:15px;
+
+ margin:20px 0;
+
+}
+
+
+
+.box{
+
+ background:#334155;
+
+ padding:15px 35px;
+
+ border-radius:12px;
+
+ min-width:300px;
+
+ text-align:center;
+
+}
+
+
+
+.arrow{
+
+ font-size:30px;
+
+ color:#38bdf8;
+
+}
+
+
+table{
+
+ width:100%;
+
+ border-collapse:collapse;
+
+ margin-top:20px;
+
+}
+
+
+
+td,th{
+
+ border:1px solid #475569;
+
+ padding:15px;
+
+}
+
+
+
+th{
+
+ background:#334155;
+
+}
+
+
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+
+<div class="header">
+
+<h1>Filtering Metrics in Grafana Alloy</h1>
+
+<p>
+Keeping useful metrics and removing unnecessary data
+</p>
+
+</div>
+
+
+
+
+
+<section>
+
+
+
+
+
+<div class="card">
+
+
+<h2>What is Metric Filtering?</h2>
+
+
+<p>
+
+Filtering means deciding which metrics should continue to storage and which metrics should be removed.
+
+</p>
+
+
+<p>
+
+Applications generate thousands of metrics.
+
+But not every metric is useful.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Application produces metrics
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy checks metrics
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Keep useful
+
+Remove unwanted
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Send to Prometheus / Mimir
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Ecommerce Example Without Filtering</h2>
+
+
+
+<p>
+
+Imagine a shopping application.
+
+It exposes these metrics:
+
+</p>
+
+
+
+<div class="code">
+
+cart_count_total
+
+
+checkout_count_total
+
+
+payment_success_total
+
+
+payment_failed_total
+
+
+debug_test_metric
+
+
+developer_local_metric
+
+
+temporary_experiment_metric
+
+
+</div>
+
+
+
+<p>
+
+All metrics are going to storage.
+
+</p>
+
+
+
+Problems:
+
+<ul>
+
+<li>More storage cost</li>
+
+<li>Slower queries</li>
+
+<li>Messy dashboards</li>
+
+<li>Difficult troubleshooting</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>After Filtering</h2>
+
+
+
+<p>
+
+Alloy removes unwanted metrics.
+
+</p>
+
+
+
+<div class="code">
+
+Removed:
+
+
+debug_test_metric
+
+
+developer_local_metric
+
+
+temporary_experiment_metric
+
+
+
+
+Stored:
+
+
+cart_count_total
+
+
+checkout_count_total
+
+
+payment_success_total
+
+
+payment_failed_total
+
+
+</div>
+
+
+
+<p>
+
+Now only important production metrics remain.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Real Life Analogy</h2>
+
+
+
+<p>
+
+Think about airport security.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+All passengers arrive
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Security checking
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Only approved passengers enter
+
+</div>
+
+
+
+</div>
+
+
+
+<p>
+
+Alloy filtering works the same way.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Filtering by Metric Name</h2>
+
+
+
+<p>
+
+Most common filtering method.
+
+Remove metrics based on their names.
+
+</p>
+
+
+
+Before:
+
+
+<div class="code">
+
+http_requests_total
+
+
+cart_count_total
+
+
+test_metric_total
+
+
+debug_metric_total
+
+</div>
+
+
+
+
+After filtering:
+
+
+<div class="code">
+
+http_requests_total
+
+
+cart_count_total
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Filtering High Cardinality Metrics</h2>
+
+
+
+<h3>What is Cardinality?</h3>
+
+
+
+<p>
+
+Cardinality means number of unique combinations created by labels.
+
+</p>
+
+
+
+
+Good label:
+
+
+<div class="code">
+
+payment_total{
+
+
+status="success"
+
+
+}
+
+
+payment_total{
+
+
+status="failed"
+
+
+}
+
+
+
+Only 2 combinations
+
+</div>
+
+
+
+
+
+Bad label:
+
+
+<div class="code">
+
+payment_total{
+
+
+user_id="1001"
+
+
+}
+
+
+payment_total{
+
+
+user_id="1002"
+
+
+}
+
+
+payment_total{
+
+
+user_id="1000000"
+
+
+}
+
+
+
+Millions of combinations
+
+</div>
+
+
+
+<p>
+
+This creates huge storage problems.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Filtering Bad Labels</h2>
+
+
+
+<p>
+
+Instead of removing the entire metric, sometimes we remove only labels.
+
+</p>
+
+
+
+
+Before:
+
+
+<div class="code">
+
+checkout_total{
+
+
+user_id="123456",
+
+
+service="checkout"
+
+
+}
+
+</div>
+
+
+
+
+After:
+
+
+<div class="code">
+
+checkout_total{
+
+
+service="checkout"
+
+
+}
+
+</div>
+
+
+
+<p>
+
+Metric remains useful but storage reduces.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Alloy Filtering Example</h2>
+
+
+
+
+<div class="code">
+
+prometheus.relabel "filter_metrics" {
+
+
+rule {
+
+
+source_labels = ["__name__"]
+
+
+regex = "debug_.*"
+
+
+action = "drop"
+
+
+}
+
+
+}
+
+</div>
+
+
+
+
+Meaning:
+
+
+<ul>
+
+
+<li>Look at metric name</li>
+
+<li>If name starts with debug</li>
+
+<li>Drop it</li>
+
+<li>Do not store it</li>
+
+
+</ul>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Complete Filtering Journey</h2>
+
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Flask Ecommerce App
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+1000 Metrics Generated
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Alloy Filtering Rules Applied
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Important 300 Metrics Kept
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Prometheus / Mimir Storage
+
+</div>
+
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Simple Memory Rule</h2>
+
+
+
+<div class="code">
+
+Filtering answers:
+
+
+Should I store this metric?
+
+
+
+
+Keep:
+
+
+Business metrics
+
+Application health metrics
+
+Infrastructure metrics
+
+
+
+
+
+Remove:
+
+
+Debug metrics
+
+Temporary metrics
+
+High-cardinality data
+
+Unused metrics
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+</section>
+
+
+</body>
+
+
+</html>
