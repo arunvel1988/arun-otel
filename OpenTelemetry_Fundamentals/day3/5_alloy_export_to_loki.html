@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Exporting Logs to Loki</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+
+.header{
+ background:linear-gradient(135deg,#1e40af,#581c87);
+ padding:50px;
+ text-align:center;
+}
+
+
+.header h1{
+ font-size:44px;
+}
+
+
+.header p{
+ font-size:22px;
+}
+
+
+section{
+ padding:40px 70px;
+}
+
+
+.card{
+ background:#1e293b;
+ padding:30px;
+ margin-bottom:30px;
+ border-radius:18px;
+}
+
+
+h2{
+ color:#93c5fd;
+}
+
+
+h3{
+ color:#60a5fa;
+}
+
+
+.code{
+ background:#020617;
+ color:#86efac;
+ padding:20px;
+ border-radius:12px;
+ white-space:pre-line;
+}
+
+
+.flow{
+ background:#020617;
+ padding:25px;
+ border-radius:15px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:15px;
+}
+
+
+.box{
+ background:#334155;
+ padding:15px 35px;
+ border-radius:12px;
+ min-width:420px;
+ text-align:center;
+}
+
+
+.arrow{
+ color:#38bdf8;
+ font-size:30px;
+}
+
+
+table{
+ width:100%;
+ border-collapse:collapse;
+}
+
+
+td,th{
+ border:1px solid #475569;
+ padding:15px;
+}
+
+
+th{
+ background:#334155;
+}
+
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+<div class="header">
+
+<h1>Exporting Logs from Alloy to Loki</h1>
+
+<p>
+Moving application logs into searchable storage
+</p>
+
+</div>
+
+
+
+<section>
+
+
+
+
+
+<div class="card">
+
+<h2>Why Do We Need Loki?</h2>
+
+
+<p>
+
+Applications continuously create logs.
+
+</p>
+
+
+Example ecommerce logs:
+
+
+<div class="code">
+
+User added item to cart
+
+
+Checkout started
+
+
+Payment failed
+
+
+Order created
+
+</div>
+
+
+
+<p>
+
+But application containers are temporary.
+
+If the container disappears, logs disappear.
+
+</p>
+
+
+<p>
+
+We need a central place to store and search logs.
+
+That place is Loki.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>What is Loki?</h2>
+
+
+<p>
+
+Loki is a log storage and query system created by Grafana.
+
+</p>
+
+
+<p>
+
+Think of Loki like a database for logs.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Applications create logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Loki stores logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Grafana searches logs
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Where Export Happens?</h2>
+
+
+<p>
+
+Export happens after Alloy collects and processes logs.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Flask Application
+
+creates JSON logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy Receiver
+
+collect logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Processor
+
+parse json
+
+add labels
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Loki Exporter
+
+push logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Loki Storage
+
+</div>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>What Does Exporter Mean?</h2>
+
+
+<p>
+
+Exporter is the output stage.
+
+</p>
+
+
+<p>
+
+Its job:
+
+</p>
+
+
+<div class="code">
+
+Take processed logs
+
+
+Convert into Loki format
+
+
+Send over HTTP
+
+
+</div>
+
+
+
+Simple example:
+
+
+<div class="flow">
+
+<div class="box">
+
+Alloy has logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Send HTTP request
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Loki receives
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Loki Push API</h2>
+
+
+<p>
+
+Unlike Prometheus scraping metrics,
+logs are normally pushed.
+
+</p>
+
+
+<div class="code">
+
+Alloy
+
+
+POST
+
+
+http://loki:3100/loki/api/v1/push
+
+
+Loki
+
+</div>
+
+
+<p>
+
+Every few seconds Alloy sends collected logs.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Alloy Loki Export Configuration</h2>
+
+
+
+<div class="code">
+
+loki.write "default" {
+
+
+endpoint {
+
+
+url = "http://loki:3100/loki/api/v1/push"
+
+
+}
+
+
+}
+
+</div>
+
+
+
+Meaning:
+
+
+<table>
+
+<tr>
+<th>Config</th>
+<th>Meaning</th>
+</tr>
+
+
+<tr>
+
+<td>loki.write</td>
+
+<td>Create Loki exporter</td>
+
+</tr>
+
+
+<tr>
+
+<td>endpoint</td>
+
+<td>Where logs should go</td>
+
+</tr>
+
+
+<tr>
+
+<td>3100</td>
+
+<td>Loki server port</td>
+
+</tr>
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Important Loki Concept: Labels</h2>
+
+
+
+<p>
+
+Loki does not index the entire log message.
+
+It indexes labels.
+
+</p>
+
+
+Example log:
+
+
+<div class="code">
+
+Payment failed for order 500
+
+</div>
+
+
+Labels:
+
+
+<div class="code">
+
+service="payment"
+
+
+environment="production"
+
+
+level="ERROR"
+
+</div>
+
+
+Now Grafana searches:
+
+
+<div class="code">
+
+{service="payment"}
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>What is a Loki Stream?</h2>
+
+
+
+<p>
+
+Logs with the same labels are stored together.
+
+This group is called a stream.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+Stream:
+
+
+service="checkout"
+
+environment="prod"
+
+
+
+Logs:
+
+
+checkout started
+
+
+payment started
+
+
+order created
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Complete Ecommerce Example</h2>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Customer Payment Fails
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Application writes:
+
+
+ERROR payment timeout
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy collects log
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Adds labels:
+
+
+service=payment
+
+
+level=error
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Push to Loki
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Grafana Search:
+
+
+{service="payment"}
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Grafana Query Example</h2>
+
+
+
+<div class="code">
+
+Find all payment logs:
+
+
+{service="payment"}
+
+
+
+
+
+Find production errors:
+
+
+{environment="prod", level="ERROR"}
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Production Log Pipeline</h2>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Microservices
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy Receivers
+
+file/docker/journal
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Processors
+
+json parsing
+
+labels
+
+filtering
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Loki Exporter
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Loki
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Grafana Explore
+
+</div>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Memory Rule</h2>
+
+
+<div class="code">
+
+Receiver:
+
+
+Where logs come from
+
+
+
+
+Processor:
+
+
+Clean and enrich logs
+
+
+
+
+Exporter:
+
+
+Where logs go
+
+
+
+
+Loki:
+
+
+Stores logs
+
+
+
+
+Labels:
+
+
+Fast searching
+
+
+
+
+Grafana:
+
+
+View and analyze logs
+
+</div>
+
+
+</div>
+
+
+
+
+</section>
+
+
+</body>
+
+
+</html>
