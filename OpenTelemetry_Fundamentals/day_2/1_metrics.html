@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Metrics Concepts - Ecommerce Example</title>
+
+<style>
+
+body{
+    margin:0;
+    background:#0f172a;
+    color:#e5e7eb;
+    font-family:Segoe UI,Arial;
+    line-height:1.7;
+}
+
+
+.header{
+
+    background:linear-gradient(135deg,#1d4ed8,#4c1d95);
+
+    padding:50px;
+
+    text-align:center;
+
+}
+
+
+.header h1{
+
+    font-size:45px;
+
+}
+
+
+.header p{
+
+    font-size:22px;
+
+}
+
+
+
+section{
+
+    padding:35px 70px;
+
+}
+
+
+
+.card{
+
+    background:#1e293b;
+
+    padding:30px;
+
+    margin-bottom:30px;
+
+    border-radius:18px;
+
+    box-shadow:0 10px 25px #0007;
+
+}
+
+
+
+h2{
+
+    color:#93c5fd;
+
+}
+
+
+h3{
+
+    color:#60a5fa;
+
+}
+
+
+
+.code{
+
+    background:#020617;
+
+    padding:20px;
+
+    border-radius:12px;
+
+    color:#86efac;
+
+    white-space:pre-line;
+
+    margin-top:15px;
+
+}
+
+
+.example{
+
+    background:#334155;
+
+    padding:20px;
+
+    border-left:5px solid #38bdf8;
+
+    margin-top:20px;
+
+}
+
+
+table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+    margin-top:20px;
+
+}
+
+
+td,th{
+
+    border:1px solid #475569;
+
+    padding:15px;
+
+}
+
+
+th{
+
+    background:#334155;
+
+}
+
+
+.flow{
+
+    text-align:center;
+
+    font-size:22px;
+
+    background:#020617;
+
+    padding:20px;
+
+    border-radius:15px;
+
+}
+
+
+</style>
+
+</head>
+
+
+<body>
+
+
+
+<div class="header">
+
+
+<h1>Metrics Concepts Using Ecommerce Application</h1>
+
+
+<p>
+Learn Counter, Gauge, Histogram, Exemplars, RED and USE Metrics
+</p>
+
+
+</div>
+
+
+
+
+
+
+<section>
+
+
+<div class="card">
+
+
+<h2>What Are Metrics?</h2>
+
+
+<p>
+
+Metrics are numerical measurements collected from an application over time.
+
+</p>
+
+
+<p>
+
+Imagine an ecommerce application having:
+
+</p>
+
+
+<ul>
+
+<li>Home page</li>
+
+<li>Add to Cart API</li>
+
+<li>Checkout API</li>
+
+<li>Payment API</li>
+
+</ul>
+
+
+
+<p>
+
+Business and engineering teams want answers like:
+
+</p>
+
+
+<ul>
+
+<li>How many customers are adding products to cart?</li>
+
+<li>How many payments are failing?</li>
+
+<li>How slow is checkout?</li>
+
+<li>How much memory is the server using?</li>
+
+</ul>
+
+
+<p>
+
+All these answers come from metrics.
+
+</p>
+
+
+
+<div class="flow">
+
+Application Activity → Numbers → Time Series → Dashboard
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>1. Counter Metric</h2>
+
+
+<h3>Definition</h3>
+
+
+<p>
+
+A counter is a metric value that only increases.
+
+It starts from zero and keeps going upward.
+
+</p>
+
+
+
+<p>
+
+Counters are used when we want to count how many times something happened.
+
+</p>
+
+
+
+<div class="example">
+
+
+Ecommerce Example:
+
+
+A customer clicks "Add To Cart".
+
+
+Every click increases the counter by one.
+
+
+</div>
+
+
+
+<div class="code">
+
+cart_count_total
+
+
+10:00 AM = 100 carts
+
+10:10 AM = 250 carts
+
+10:20 AM = 600 carts
+
+
+Value only increases
+
+</div>
+
+
+
+
+<h3>Good Counter Examples</h3>
+
+
+<ul>
+
+<li>Total HTTP requests</li>
+
+<li>Total checkout attempts</li>
+
+<li>Total successful payments</li>
+
+<li>Total failed payments</li>
+
+<li>Total user registrations</li>
+
+</ul>
+
+
+
+<h3>Wrong Counter Usage</h3>
+
+
+<p>
+
+Current logged-in users should NOT be a counter because users can login and logout.
+
+That value goes up and down.
+
+Use Gauge instead.
+
+</p>
+
+
+
+<h3>Real Production Question</h3>
+
+
+<div class="code">
+
+Question:
+
+How many orders happened in last 5 minutes?
+
+
+Metric:
+
+increase(order_count_total[5m])
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>2. Gauge Metric</h2>
+
+
+
+<h3>Definition</h3>
+
+
+<p>
+
+A gauge represents a value that can increase or decrease.
+
+Think about a thermometer.
+
+Temperature can go up and down.
+
+</p>
+
+
+
+<div class="example">
+
+
+Ecommerce Example:
+
+
+Number of active users currently shopping.
+
+
+Morning: 100 users
+
+
+Afternoon: 500 users
+
+
+Night: 50 users
+
+
+</div>
+
+
+
+
+<div class="code">
+
+active_users
+
+
+10 AM = 100
+
+
+1 PM = 500
+
+
+11 PM = 50
+
+
+Moves both directions
+
+</div>
+
+
+
+<h3>Good Gauge Examples</h3>
+
+
+<ul>
+
+<li>Current active users</li>
+
+<li>CPU percentage</li>
+
+<li>Memory usage</li>
+
+<li>Database connections</li>
+
+<li>Queue size</li>
+
+<li>Items currently in cart</li>
+
+</ul>
+
+
+
+
+<h3>Counter vs Gauge</h3>
+
+
+<table>
+
+<tr>
+
+<th>Counter</th>
+
+<th>Gauge</th>
+
+</tr>
+
+
+
+<tr>
+
+<td>Total orders today</td>
+
+<td>Current active users</td>
+
+</tr>
+
+
+<tr>
+
+<td>Total errors happened</td>
+
+<td>Current CPU usage</td>
+
+</tr>
+
+
+<tr>
+
+<td>Always increases</td>
+
+<td>Increase and decrease</td>
+
+</tr>
+
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>3. Histogram Metric</h2>
+
+
+
+<h3>Definition</h3>
+
+
+
+<p>
+
+Histogram measures how values are distributed.
+
+Mostly used to measure latency.
+
+</p>
+
+
+
+<p>
+
+Average is dangerous.
+
+Two systems can have same average but very different user experience.
+
+</p>
+
+
+
+
+<div class="example">
+
+
+Checkout API response times:
+
+
+Customer A = 100 ms
+
+
+Customer B = 300 ms
+
+
+Customer C = 5 seconds
+
+
+We need to understand distribution.
+
+
+</div>
+
+
+
+<h3>Histogram Buckets</h3>
+
+
+
+<div class="code">
+
+
+checkout_duration_bucket
+
+
+less than 100ms  = 200 users
+
+
+less than 500ms  = 900 users
+
+
+less than 1 sec  = 980 users
+
+
+less than 5 sec  = 1000 users
+
+
+</div>
+
+
+
+
+<h3>Percentiles</h3>
+
+
+<p>
+
+
+P95 latency means:
+
+
+95 percent users are faster than this value.
+
+
+</p>
+
+
+
+<div class="code">
+
+P95 checkout latency = 800ms
+
+
+Meaning:
+
+
+95% customers checkout below 800ms
+
+
+5% customers are slower
+
+
+</div>
+
+
+
+
+<h3>Good Histogram Examples</h3>
+
+
+<ul>
+
+<li>API response time</li>
+
+<li>Database query duration</li>
+
+<li>Payment gateway latency</li>
+
+<li>File upload time</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>4. Exemplars</h2>
+
+
+<h3>Problem</h3>
+
+
+<p>
+
+Metrics tell us something is wrong.
+
+But they do not explain why.
+
+</p>
+
+
+
+<div class="example">
+
+
+Metric says:
+
+
+Checkout latency increased to 5 seconds.
+
+
+Question:
+
+
+Which exact request caused it?
+
+
+</div>
+
+
+
+<h3>Exemplar Solution</h3>
+
+
+<p>
+
+An exemplar connects a metric point with a trace.
+
+</p>
+
+
+
+<div class="flow">
+
+
+Slow Metric Point
+
+→
+
+Trace ID
+
+→
+
+Exact Request Details
+
+
+</div>
+
+
+
+
+<div class="code">
+
+
+checkout_latency = 5 seconds
+
+
+attached:
+
+
+trace_id="abc123"
+
+
+
+Open trace:
+
+
+Database call took 4 seconds
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>5. RED Metrics</h2>
+
+
+
+<p>
+
+RED is mainly used for application and microservice monitoring.
+
+</p>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Letter</th>
+
+<th>Meaning</th>
+
+<th>Ecommerce Example</th>
+
+</tr>
+
+
+
+<tr>
+
+<td>R - Rate</td>
+
+<td>How many requests?</td>
+
+<td>1000 checkout requests/min</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>E - Errors</td>
+
+<td>How many failed?</td>
+
+<td>20 payment failures</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>D - Duration</td>
+
+<td>How slow?</td>
+
+<td>Checkout taking 2 seconds</td>
+
+</tr>
+
+
+</table>
+
+
+
+<h3>Checkout API Health</h3>
+
+
+
+<div class="code">
+
+
+Rate:
+
+500 requests/min
+
+
+
+Errors:
+
+5 failures/min
+
+
+
+Duration:
+
+P95 latency 400ms
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>6. USE Metrics</h2>
+
+
+
+<p>
+
+USE is mainly used for infrastructure monitoring.
+
+Servers, databases and machines.
+
+</p>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Letter</th>
+
+<th>Meaning</th>
+
+<th>Example</th>
+
+</tr>
+
+
+<tr>
+
+<td>U - Utilization</td>
+
+<td>How busy?</td>
+
+<td>CPU running 85%</td>
+
+</tr>
+
+
+<tr>
+
+<td>S - Saturation</td>
+
+<td>Too much work waiting?</td>
+
+<td>Request queue full</td>
+
+</tr>
+
+
+<tr>
+
+<td>E - Errors</td>
+
+<td>System problems</td>
+
+<td>Disk failures</td>
+
+</tr>
+
+
+
+</table>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Final Memory Rule</h2>
+
+
+
+<div class="code">
+
+
+Counter:
+
+How many times did it happen?
+
+
+
+Gauge:
+
+What is the current value?
+
+
+
+Histogram:
+
+How long did it take?
+
+
+
+RED:
+
+Is my application healthy?
+
+
+
+USE:
+
+Is my infrastructure healthy?
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+</section>
+
+
+
+
+</body>
+
+</html>
