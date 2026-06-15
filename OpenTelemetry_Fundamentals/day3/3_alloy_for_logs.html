@@ -1,0 +1,966 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Alloy Log Receivers</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+
+.header{
+ background:linear-gradient(135deg,#1e40af,#581c87);
+ padding:50px;
+ text-align:center;
+}
+
+
+.header h1{
+ font-size:44px;
+}
+
+
+.header p{
+ font-size:22px;
+}
+
+
+
+section{
+ padding:40px 70px;
+}
+
+
+
+.card{
+ background:#1e293b;
+ padding:30px;
+ margin-bottom:30px;
+ border-radius:18px;
+}
+
+
+
+h2{
+ color:#93c5fd;
+}
+
+
+h3{
+ color:#60a5fa;
+}
+
+
+
+.code{
+ background:#020617;
+ color:#86efac;
+ padding:20px;
+ border-radius:12px;
+ white-space:pre-line;
+}
+
+
+
+.flow{
+ background:#020617;
+ padding:25px;
+ border-radius:15px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:15px;
+}
+
+
+
+.box{
+ background:#334155;
+ padding:15px 35px;
+ border-radius:12px;
+ min-width:380px;
+ text-align:center;
+}
+
+
+.arrow{
+ color:#38bdf8;
+ font-size:30px;
+}
+
+
+
+table{
+ width:100%;
+ border-collapse:collapse;
+}
+
+
+td,th{
+ border:1px solid #475569;
+ padding:15px;
+}
+
+
+th{
+ background:#334155;
+}
+
+
+</style>
+
+
+</head>
+
+
+<body>
+
+
+
+<div class="header">
+
+<h1>Grafana Alloy for Logs</h1>
+
+<p>
+Collecting logs from applications and servers
+</p>
+
+</div>
+
+
+
+
+
+<section>
+
+
+
+
+
+<div class="card">
+
+<h2>Why Do We Need Alloy for Logs?</h2>
+
+
+<p>
+
+Applications generate logs continuously.
+
+</p>
+
+
+Example ecommerce application:
+
+
+<div class="code">
+
+INFO user opened website
+
+
+INFO product added to cart
+
+
+ERROR payment failed
+
+
+INFO order created
+
+</div>
+
+
+
+<p>
+
+But these logs are sitting inside different places.
+
+</p>
+
+
+<ul>
+
+<li>Application files</li>
+
+<li>Docker containers</li>
+
+<li>Linux servers</li>
+
+<li>Kubernetes pods</li>
+
+</ul>
+
+
+<p>
+
+Alloy's job is to collect all logs and send them to Loki.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Complete Logging Flow</h2>
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Flask Ecommerce Application
+
+Creates logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Logs stored somewhere
+
+File / Docker / Server
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy Receiver
+
+Collect logs
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Loki
+
+Store logs
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Grafana
+
+Search logs
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>What is a Log Receiver?</h2>
+
+
+
+<p>
+
+Receiver means input.
+
+</p>
+
+
+<p>
+
+It tells Alloy:
+
+Where should I collect logs from?
+
+</p>
+
+
+
+<div class="code">
+
+Receiver answers:
+
+
+Read this file
+
+
+Watch this container
+
+
+Read this server journal
+
+
+Accept logs from another tool
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>1. File Log Receiver</h2>
+
+
+
+<p>
+
+Used when applications write logs into files.
+
+</p>
+
+
+Example:
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Flask App
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+/var/log/app.log
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy filelog receiver
+
+</div>
+
+
+</div>
+
+
+
+Log file:
+
+
+<div class="code">
+
+/var/log/ecommerce.log
+
+
+
+INFO checkout started
+
+
+ERROR payment failed
+
+</div>
+
+
+
+Alloy watches the file.
+
+Whenever new lines appear, Alloy collects them.
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Filelog Configuration Example</h2>
+
+
+<div class="code">
+
+otelcol.receiver.filelog "app" {
+
+
+include = [
+
+"/var/log/ecommerce.log"
+
+]
+
+
+
+output {
+
+
+logs = [
+
+otelcol.exporter.otlp.default.input
+
+]
+
+
+}
+
+
+}
+
+</div>
+
+
+Meaning:
+
+
+<ul>
+
+<li>Watch ecommerce.log</li>
+
+<li>Read new log lines</li>
+
+<li>Forward them</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>2. Docker Log Receiver</h2>
+
+
+<p>
+
+Most modern apps run inside containers.
+
+</p>
+
+
+
+Example:
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Docker Container
+
+flask-app
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Container stdout logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy Docker receiver
+
+</div>
+
+
+</div>
+
+
+
+
+Container output:
+
+
+<div class="code">
+
+docker logs flask-app
+
+
+
+INFO cart added
+
+
+ERROR checkout failed
+
+</div>
+
+
+
+<p>
+
+Alloy collects container logs automatically.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Docker Logs Production Example</h2>
+
+
+<div class="code">
+
+Container:
+
+
+checkout-service
+
+
+
+
+Logs:
+
+
+{
+
+service:"checkout",
+
+message:"payment failed",
+
+trace_id:"abc123"
+
+}
+
+
+
+
+Alloy collects
+
+
+↓
+
+
+Loki stores
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>3. Journald Receiver</h2>
+
+
+
+<p>
+
+Linux systems store service logs using systemd journal.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+journalctl -u nginx
+
+
+
+Started nginx
+
+
+Request failed
+
+
+Service restarted
+
+</div>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Linux Service
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+systemd journal
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy journald receiver
+
+</div>
+
+
+</div>
+
+
+
+Used for:
+
+
+<ul>
+
+<li>Linux servers</li>
+
+<li>System services</li>
+
+<li>Infrastructure logs</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>4. Fluent Receiver</h2>
+
+
+
+<p>
+
+Many companies already use Fluent Bit or Fluentd.
+
+</p>
+
+
+
+Instead of replacing them:
+
+<p>
+
+Alloy can receive logs from them.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Applications
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Fluent Bit
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy Fluent Receiver
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Loki
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Which Receiver Should I Use?</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Scenario</th>
+
+<th>Receiver</th>
+
+</tr>
+
+
+<tr>
+
+<td>Application writes log file</td>
+
+<td>filelog</td>
+
+</tr>
+
+
+<tr>
+
+<td>Docker containers</td>
+
+<td>docker logs</td>
+
+</tr>
+
+
+<tr>
+
+<td>Linux system services</td>
+
+<td>journald</td>
+
+</tr>
+
+
+<tr>
+
+<td>Existing Fluent setup</td>
+
+<td>fluent receiver</td>
+
+</tr>
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Final Memory Rule</h2>
+
+
+<div class="code">
+
+Application:
+
+
+Creates logs
+
+
+
+
+
+Receiver:
+
+
+Collects logs from source
+
+
+
+
+
+filelog:
+
+
+Reads files
+
+
+
+
+
+docker:
+
+
+Reads containers
+
+
+
+
+
+journald:
+
+
+Reads Linux logs
+
+
+
+
+
+fluent:
+
+
+Accepts Fluent logs
+
+
+
+
+
+Alloy:
+
+
+Moves logs to Loki
+
+</div>
+
+
+</div>
+
+
+
+
+
+</section>
+
+
+</body>
+
+
+</html>
