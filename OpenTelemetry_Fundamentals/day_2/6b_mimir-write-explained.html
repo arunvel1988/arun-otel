@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Mimir Write Architecture</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+
+.header{
+ background:linear-gradient(135deg,#1e40af,#581c87);
+ padding:50px;
+ text-align:center;
+}
+
+
+.header h1{
+ font-size:44px;
+}
+
+
+.header p{
+ font-size:22px;
+}
+
+
+section{
+ padding:40px 70px;
+}
+
+
+.card{
+ background:#1e293b;
+ padding:30px;
+ margin-bottom:30px;
+ border-radius:18px;
+}
+
+
+h2{
+ color:#93c5fd;
+}
+
+
+h3{
+ color:#60a5fa;
+}
+
+
+.code{
+ background:#020617;
+ color:#86efac;
+ padding:20px;
+ border-radius:12px;
+ white-space:pre-line;
+}
+
+
+.flow{
+ background:#020617;
+ padding:25px;
+ border-radius:15px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:15px;
+}
+
+
+.box{
+ background:#334155;
+ padding:18px 35px;
+ border-radius:12px;
+ min-width:420px;
+ text-align:center;
+}
+
+
+.arrow{
+ font-size:30px;
+ color:#38bdf8;
+}
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+<div class="header">
+
+<h1>Mimir Write Architecture Explained</h1>
+
+<p>
+From customer action to long term metric storage
+</p>
+
+</div>
+
+
+
+<section>
+
+
+
+<div class="card">
+
+<h2>Step 1: Customer Does Something</h2>
+
+
+<p>
+
+Imagine an ecommerce application.
+
+A customer clicks Add To Cart.
+
+</p>
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Customer clicks Add To Cart button
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Flask API runs
+
+/cart endpoint
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Application increases metric
+
+cart_count_total + 1
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Step 2: Metric is Created</h2>
+
+
+<p>
+
+Inside the application OpenTelemetry creates a metric.
+
+</p>
+
+
+<div class="code">
+
+Example:
+
+
+cart_count_total {
+
+
+service="cart-service"
+
+environment="production"
+
+}
+
+
+value = 500
+
+</div>
+
+
+
+<p>
+
+This is only inside application memory currently.
+
+It has not reached Mimir yet.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Step 3: Alloy Collects the Metric</h2>
+
+
+
+<p>
+
+Grafana Alloy receives or collects this metric.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Application Metrics
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Grafana Alloy
+
+</div>
+
+
+</div>
+
+
+
+Alloy can:
+
+
+<ul>
+
+<li>Add labels</li>
+
+<li>Remove unwanted metrics</li>
+
+<li>Prepare data for storage</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Step 4: What is Remote Write?</h2>
+
+
+
+<p>
+
+Remote Write simply means:
+
+</p>
+
+
+<div class="code">
+
+Send metrics over HTTP
+
+from collector
+
+to metrics database
+
+</div>
+
+
+
+Example:
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Alloy has:
+
+
+cart_count_total=500
+
+</div>
+
+
+<div class="arrow">↓ HTTP POST ↓</div>
+
+
+<div class="box">
+
+Mimir receives data
+
+</div>
+
+
+
+</div>
+
+
+
+
+<p>
+
+This HTTP request is called a Remote Write request.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Step 5: Mimir Distributor Receives Data</h2>
+
+
+
+<p>
+
+The first component inside Mimir is Distributor.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Remote Write arrives
+
+cart_count_total
+
+checkout_total
+
+payment_total
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Distributor
+
+</div>
+
+
+</div>
+
+
+
+
+Distributor checks:
+
+
+<ul>
+
+<li>Is this metric valid?</li>
+
+<li>Which customer/team owns it?</li>
+
+<li>Where should this metric go?</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Understanding Tenant</h2>
+
+
+<p>
+
+A tenant means a separate customer or team inside the same Mimir system.
+
+</p>
+
+
+
+Example company:
+
+
+
+<div class="code">
+
+Same Mimir Cluster
+
+
+
+
+Tenant A:
+
+
+Payment Team Metrics
+
+
+
+
+Tenant B:
+
+
+Cart Team Metrics
+
+
+
+
+Tenant C:
+
+
+Search Team Metrics
+
+</div>
+
+
+
+<p>
+
+Distributor identifies the tenant before storing data.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Step 6: Distributor Sends to Ingester</h2>
+
+
+
+<p>
+
+Distributor itself does not store metrics.
+
+It sends them to ingesters.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Distributor
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Ingester
+
+Stores incoming metrics
+
+</div>
+
+
+
+</div>
+
+
+
+
+Example:
+
+
+
+<div class="code">
+
+Incoming:
+
+
+cart_count_total
+
+
+10:00 = 100
+
+
+10:10 = 500
+
+
+
+
+Ingester stores this time series
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Step 7: Ingester Creates Blocks</h2>
+
+
+
+<p>
+
+Metrics are stored as time based blocks.
+
+</p>
+
+
+
+Example:
+
+
+
+<div class="code">
+
+
+Block 1:
+
+
+10 AM - 12 PM
+
+
+cart metrics
+
+
+payment metrics
+
+
+
+
+
+Block 2:
+
+
+12 PM - 2 PM
+
+
+cart metrics
+
+
+payment metrics
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Step 8: Blocks Go To Long Term Storage</h2>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Ingester creates blocks
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Object Storage
+
+S3 / MinIO
+
+</div>
+
+
+
+</div>
+
+
+
+<p>
+
+This is why Mimir can store years of metrics.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Complete Write Path</h2>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Customer Add Cart
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Flask creates metric
+
+cart_count_total
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Alloy collects and processes
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Remote Write request
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Mimir Distributor
+
+validate and route
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Ingester
+
+store recent metrics
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+S3 / MinIO
+
+long term storage
+
+</div>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Simple Memory Rule</h2>
+
+
+
+<div class="code">
+
+Application:
+
+
+Creates metric
+
+
+
+
+Alloy:
+
+
+Collects metric and sends
+
+
+
+
+Remote Write:
+
+
+Delivery truck carrying metrics
+
+
+
+
+Distributor:
+
+
+Security gate + traffic controller
+
+
+
+
+Tenant:
+
+
+Separate team/customer
+
+
+
+
+Ingester:
+
+
+Temporary warehouse
+
+
+
+
+S3 / MinIO:
+
+
+Permanent storage
+
+</div>
+
+
+</div>
+
+
+
+
+</section>
+
+
+</body>
+
+</html>
