@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>LogQL Querying</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+.header{
+ background:linear-gradient(135deg,#1e40af,#581c87);
+ padding:50px;
+ text-align:center;
+}
+
+.header h1{
+ font-size:44px;
+}
+
+.header p{
+ font-size:22px;
+}
+
+section{
+ padding:40px 70px;
+}
+
+.card{
+ background:#1e293b;
+ padding:30px;
+ margin-bottom:30px;
+ border-radius:18px;
+}
+
+h2{
+ color:#93c5fd;
+}
+
+h3{
+ color:#60a5fa;
+}
+
+.code{
+ background:#020617;
+ color:#86efac;
+ padding:20px;
+ border-radius:12px;
+ white-space:pre-line;
+}
+
+.flow{
+ background:#020617;
+ padding:25px;
+ border-radius:15px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:15px;
+}
+
+.box{
+ background:#334155;
+ padding:15px 35px;
+ border-radius:12px;
+ min-width:420px;
+ text-align:center;
+}
+
+.arrow{
+ color:#38bdf8;
+ font-size:30px;
+}
+
+table{
+ width:100%;
+ border-collapse:collapse;
+}
+
+td,th{
+ border:1px solid #475569;
+ padding:15px;
+}
+
+th{
+ background:#334155;
+}
+
+</style>
+
+</head>
+
+<body>
+
+
+<div class="header">
+
+<h1>LogQL Querying in Loki</h1>
+
+<p>
+Finding problems inside millions of logs
+</p>
+
+</div>
+
+
+<section>
+
+
+
+
+
+<div class="card">
+
+<h2>What is LogQL?</h2>
+
+<p>
+
+LogQL is the query language used by Loki.
+
+</p>
+
+
+<p>
+
+Just like Prometheus uses PromQL for metrics,
+Loki uses LogQL for logs.
+
+</p>
+
+
+<div class="code">
+
+Prometheus:
+
+PromQL → Query metrics
+
+
+
+Loki:
+
+LogQL → Query logs
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Why Do We Need LogQL?</h2>
+
+
+<p>
+
+Imagine ecommerce logs:
+
+</p>
+
+
+<div class="code">
+
+10 million logs today
+
+
+checkout logs
+
+payment logs
+
+database logs
+
+cart logs
+
+</div>
+
+
+<p>
+
+Questions:
+
+</p>
+
+
+<ul>
+
+<li>Show only payment errors</li>
+
+<li>Find failed orders</li>
+
+<li>Count checkout failures</li>
+
+<li>Find slow API calls</li>
+
+</ul>
+
+
+<p>
+
+LogQL helps answer these questions.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Basic Loki Query</h2>
+
+
+<p>
+
+First select logs using labels.
+
+</p>
+
+
+<div class="code">
+
+{service="payment"}
+
+</div>
+
+
+Meaning:
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Go to Loki Index
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Find streams where service=payment
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Return payment logs
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Multiple Label Search</h2>
+
+
+
+Example:
+
+<div class="code">
+
+{
+ service="payment",
+ environment="prod"
+}
+
+</div>
+
+
+
+Meaning:
+
+
+<div class="code">
+
+Give me logs where:
+
+
+service is payment
+
+
+AND
+
+
+environment is production
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Searching Text Inside Logs</h2>
+
+
+<p>
+
+Labels find streams.
+
+Then we search inside messages.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+{service="payment"}
+|= "failed"
+
+</div>
+
+
+Meaning:
+
+
+<div class="code">
+
+Step 1:
+
+Find payment logs
+
+
+
+Step 2:
+
+Inside those logs find word failed
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Exclude Text</h2>
+
+
+
+<p>
+
+Remove unwanted logs.
+
+</p>
+
+
+<div class="code">
+
+{service="payment"}
+
+!= "success"
+
+</div>
+
+
+
+Meaning:
+
+
+<div class="code">
+
+Show payment logs
+
+
+but remove logs containing success
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Regex Searching</h2>
+
+
+<p>
+
+Regex allows pattern matching.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+{service="checkout"}
+
+|~ "ERROR|FAILED"
+
+</div>
+
+
+
+Meaning:
+
+
+<div class="code">
+
+Find checkout logs containing:
+
+
+ERROR
+
+
+or
+
+
+FAILED
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>JSON Log Querying</h2>
+
+
+<p>
+
+Modern applications create JSON logs.
+
+</p>
+
+
+Example log:
+
+
+<div class="code">
+
+{
+
+"service":"payment",
+
+"user_id":"100",
+
+"status":"failed"
+
+}
+
+</div>
+
+
+LogQL:
+
+<div class="code">
+
+{service="payment"}
+
+| json
+
+| status="failed"
+
+</div>
+
+
+Meaning:
+
+
+<ul>
+
+<li>Select payment logs</li>
+
+<li>Parse JSON</li>
+
+<li>Filter status field</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Finding User Journey</h2>
+
+
+<p>
+
+Using trace id from OpenTelemetry.
+
+</p>
+
+
+
+<div class="code">
+
+{service="checkout"}
+
+| json
+
+| trace_id="abc123"
+
+</div>
+
+
+Result:
+
+
+<div class="code">
+
+Checkout started
+
+
+Payment called
+
+
+Database timeout
+
+
+Checkout failed
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Counting Logs</h2>
+
+
+
+<p>
+
+LogQL can also behave like metrics.
+
+</p>
+
+
+Question:
+
+
+<p>
+
+How many payment failures happened?
+
+</p>
+
+
+
+<div class="code">
+
+count_over_time(
+
+{service="payment"}
+
+|= "failed"
+
+[5m]
+
+)
+
+</div>
+
+
+Meaning:
+
+
+<div class="code">
+
+Count failed payment logs
+
+during last 5 minutes
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Error Rate Example</h2>
+
+
+
+<div class="code">
+
+rate(
+
+{service="checkout", level="ERROR"}
+
+[1m]
+
+)
+
+</div>
+
+
+Meaning:
+
+
+<div class="code">
+
+How many checkout errors
+
+per second?
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Real Production Debugging</h2>
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Customer says checkout failed
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Search trace_id
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Find all related logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Identify payment timeout
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Useful Ecommerce Queries</h2>
+
+
+<table>
+
+
+<tr>
+
+<th>Question</th>
+
+<th>LogQL</th>
+
+</tr>
+
+
+<tr>
+
+<td>Payment errors</td>
+
+<td>{service="payment", level="ERROR"}</td>
+
+</tr>
+
+
+<tr>
+
+<td>Checkout failures</td>
+
+<td>{service="checkout"} |= "failed"</td>
+
+</tr>
+
+
+<tr>
+
+<td>User request</td>
+
+<td>| json | user_id="123"</td>
+
+</tr>
+
+
+<tr>
+
+<td>Error count</td>
+
+<td>count_over_time()</td>
+
+</tr>
+
+
+</table>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Complete Query Flow</h2>
+
+
+<div class="flow">
+
+<div class="box">
+
+Grafana Explore
+
+User enters LogQL
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Loki checks labels
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Find matching streams
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Read chunks
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Return logs
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Memory Rule</h2>
+
+
+<div class="code">
+
+{ }
+
+=
+Select streams using labels
+
+
+
+|=
+
+=
+contains text
+
+
+
+!=
+
+=
+remove text
+
+
+
+|~
+
+=
+regex search
+
+
+
+| json
+
+=
+extract JSON fields
+
+
+
+count_over_time
+
+=
+convert logs into numbers
+
+
+
+rate
+
+=
+logs per second
+
+</div>
+
+
+</div>
+
+
+
+</section>
+
+</body>
+
+</html>
