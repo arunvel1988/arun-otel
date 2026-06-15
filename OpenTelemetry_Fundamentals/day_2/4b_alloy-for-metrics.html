@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Alloy Processing and Exporting Metrics</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+
+.header{
+
+ background:linear-gradient(135deg,#1e40af,#581c87);
+
+ padding:50px;
+
+ text-align:center;
+
+}
+
+
+.header h1{
+
+ font-size:44px;
+
+}
+
+
+.header p{
+
+ font-size:22px;
+
+}
+
+
+section{
+
+ padding:40px 70px;
+
+}
+
+
+.card{
+
+ background:#1e293b;
+
+ padding:30px;
+
+ margin-bottom:30px;
+
+ border-radius:18px;
+
+ box-shadow:0 10px 25px #0008;
+
+}
+
+
+h2{
+
+ color:#93c5fd;
+
+}
+
+
+h3{
+
+ color:#60a5fa;
+
+}
+
+
+.code{
+
+ background:#020617;
+
+ color:#86efac;
+
+ padding:20px;
+
+ border-radius:12px;
+
+ white-space:pre-line;
+
+ margin-top:15px;
+
+}
+
+
+.flow{
+
+ background:#020617;
+
+ padding:25px;
+
+ border-radius:15px;
+
+ display:flex;
+
+ flex-direction:column;
+
+ align-items:center;
+
+ gap:15px;
+
+ margin:20px 0;
+
+}
+
+
+
+.flow-box{
+
+ background:#334155;
+
+ padding:15px 35px;
+
+ border-radius:12px;
+
+ min-width:300px;
+
+ text-align:center;
+
+}
+
+
+
+.arrow{
+
+ color:#38bdf8;
+
+ font-size:30px;
+
+}
+
+
+table{
+
+ width:100%;
+
+ border-collapse:collapse;
+
+ margin-top:20px;
+
+}
+
+
+td,th{
+
+ border:1px solid #475569;
+
+ padding:15px;
+
+}
+
+
+th{
+
+ background:#334155;
+
+}
+
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+
+<div class="header">
+
+<h1>Alloy Processing and Exporting Metrics</h1>
+
+<p>
+Cleaning, modifying and sending metrics to storage systems
+</p>
+
+</div>
+
+
+
+
+<section>
+
+
+
+
+
+<div class="card">
+
+
+<h2>Why Processing Metrics is Required?</h2>
+
+
+<p>
+
+After Alloy collects metrics from applications, sending them directly is not always a good idea.
+
+</p>
+
+
+<p>
+
+In production companies thousands of services generate millions of metrics.
+
+Before storing them we need to improve them.
+
+</p>
+
+
+
+Example raw metric:
+
+
+<div class="code">
+
+cart_count_total 500
+
+</div>
+
+
+
+Problem:
+
+
+<ul>
+
+<li>Which application generated this?</li>
+
+<li>Which environment?</li>
+
+<li>Which team owns it?</li>
+
+<li>Is this metric even required?</li>
+
+</ul>
+
+
+Alloy processing solves this.
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Complete Alloy Metrics Pipeline</h2>
+
+
+
+<div class="flow">
+
+
+<div class="flow-box">
+
+Application Metrics
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Alloy Receiver / Scraper
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Processing
+
+Add Labels
+
+Relabel
+
+Filter
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Exporter
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Prometheus / Mimir
+
+</div>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>1. Adding Labels</h2>
+
+
+<p>
+
+Labels add extra information to metrics.
+
+Without labels:
+
+</p>
+
+
+
+<div class="code">
+
+checkout_count_total 200
+
+</div>
+
+
+
+<p>
+
+We only know checkout count.
+
+Nothing else.
+
+</p>
+
+
+
+After Alloy adds labels:
+
+
+
+<div class="code">
+
+checkout_count_total{
+
+ service="checkout",
+
+ environment="production",
+
+ team="payments",
+
+ region="india"
+
+}
+
+200
+
+</div>
+
+
+
+
+Now we can ask better questions:
+
+
+
+<div class="code">
+
+Show checkout traffic only for production
+
+
+environment="production"
+
+
+
+
+Show payment team's metrics
+
+
+team="payments"
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>2. Relabeling Metrics</h2>
+
+
+<p>
+
+Relabeling means changing existing labels into better labels.
+
+</p>
+
+
+
+Example:
+
+
+Before:
+
+
+<div class="code">
+
+pod="checkout-app-7sd92"
+
+</div>
+
+
+
+Problem:
+
+
+<p>
+
+Random Kubernetes pod names are difficult for dashboards.
+
+</p>
+
+
+
+After relabeling:
+
+
+<div class="code">
+
+service="checkout"
+
+</div>
+
+
+
+<p>
+
+Now dashboards remain stable even when pods change.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Relabel Example in Ecommerce</h2>
+
+
+
+<div class="code">
+
+Before:
+
+
+http_requests_total{
+
+
+container="cart-v2-6754"
+
+
+}
+
+
+
+
+After Alloy:
+
+
+http_requests_total{
+
+
+service="cart"
+
+
+team="shopping"
+
+
+}
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>3. Filtering Metrics</h2>
+
+
+
+<p>
+
+Not every metric should be stored.
+
+Storage costs money.
+
+Too many metrics slow queries.
+
+</p>
+
+
+
+Example application exposes:
+
+
+<div class="code">
+
+cart_count_total
+
+
+checkout_count_total
+
+
+debug_test_metric
+
+
+temporary_metric
+
+
+</div>
+
+
+
+
+Alloy removes useless metrics:
+
+
+
+<div class="code">
+
+Stored:
+
+
+cart_count_total
+
+
+checkout_count_total
+
+</div>
+
+
+
+
+Benefits:
+
+
+<ul>
+
+<li>Less storage usage</li>
+
+<li>Faster queries</li>
+
+<li>Cleaner dashboards</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Alloy Processing Example</h2>
+
+
+
+<div class="code">
+
+prometheus.relabel "process" {
+
+
+rule {
+
+
+target_label = "environment"
+
+
+replacement = "production"
+
+
+}
+
+
+
+rule {
+
+
+source_labels=["container"]
+
+
+target_label="service"
+
+
+}
+
+
+}
+
+</div>
+
+
+
+
+<p>
+
+This modifies metrics before exporting.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>What is Exporting?</h2>
+
+
+<p>
+
+After processing, metrics must be sent somewhere.
+
+Exporter is responsible for sending metrics to storage.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="flow-box">
+
+Processed Metrics
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Alloy Exporter
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Metrics Database
+
+</div>
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Exporting to Prometheus</h2>
+
+
+<p>
+
+Prometheus is usually used for recent operational metrics.
+
+</p>
+
+
+
+Examples:
+
+
+<ul>
+
+<li>Current application health</li>
+
+<li>Alerting</li>
+
+<li>Debugging today's issue</li>
+
+</ul>
+
+
+
+Flow:
+
+
+
+<div class="flow">
+
+
+<div class="flow-box">
+
+Alloy
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Prometheus
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Grafana Dashboard
+
+</div>
+
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Remote Write Concept</h2>
+
+
+
+<p>
+
+Remote write means pushing metrics into another metrics storage system.
+
+</p>
+
+
+
+Normal scrape:
+
+
+<div class="code">
+
+Collector pulls metrics
+
+
+</div>
+
+
+
+Remote write:
+
+
+<div class="code">
+
+Collector pushes metrics
+
+
+</div>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+
+<div class="flow-box">
+
+Alloy
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Remote Write API
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Mimir
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Exporting Metrics to Mimir</h2>
+
+
+
+<p>
+
+Mimir is used when metrics become very large.
+
+</p>
+
+
+
+Example:
+
+
+<p>
+
+A large ecommerce company stores:
+
+</p>
+
+
+
+<ul>
+
+<li>Millions of requests per minute</li>
+
+<li>Thousands of services</li>
+
+<li>Years of historical metrics</li>
+
+</ul>
+
+
+
+Mimir architecture:
+
+
+<div class="flow">
+
+
+<div class="flow-box">
+
+Alloy
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Mimir
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+<div class="flow-box">
+
+Object Storage
+
+S3 / MinIO
+
+</div>
+
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Final Production Flow</h2>
+
+
+
+<div class="flow">
+
+
+<div class="flow-box">
+
+Ecommerce Applications
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="flow-box">
+
+Alloy Collects Metrics
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="flow-box">
+
+Add Labels
+
+Relabel
+
+Filter
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="flow-box">
+
+Export
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="flow-box">
+
+Prometheus
+
+Fast Recent Queries
+
+</div>
+
+
+
+<div class="flow-box">
+
+Mimir
+
+Long Term Storage
+
+</div>
+
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Simple Memory Rule</h2>
+
+
+
+<div class="code">
+
+Processing:
+
+Make metrics useful
+
+
+
+
+Labels:
+
+Add information
+
+
+
+
+Relabel:
+
+Rename and organize
+
+
+
+
+Filter:
+
+Remove unwanted data
+
+
+
+
+Prometheus:
+
+Short term monitoring
+
+
+
+
+Mimir:
+
+Long term scalable metrics storage
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+</section>
+
+
+
+</body>
+
+
+</html>
