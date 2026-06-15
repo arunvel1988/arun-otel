@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Logging Essentials</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+.header{
+ background:linear-gradient(135deg,#1e40af,#581c87);
+ padding:50px;
+ text-align:center;
+}
+
+.header h1{
+ font-size:44px;
+}
+
+.header p{
+ font-size:22px;
+}
+
+
+section{
+ padding:40px 70px;
+}
+
+
+.card{
+ background:#1e293b;
+ padding:30px;
+ margin-bottom:30px;
+ border-radius:18px;
+}
+
+
+h2{
+ color:#93c5fd;
+}
+
+
+h3{
+ color:#60a5fa;
+}
+
+
+.code{
+ background:#020617;
+ color:#86efac;
+ padding:20px;
+ border-radius:12px;
+ white-space:pre-line;
+}
+
+
+.flow{
+ background:#020617;
+ padding:25px;
+ border-radius:15px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:15px;
+}
+
+
+.box{
+ background:#334155;
+ padding:15px 35px;
+ border-radius:12px;
+ min-width:350px;
+ text-align:center;
+}
+
+
+.arrow{
+ color:#38bdf8;
+ font-size:30px;
+}
+
+
+table{
+ width:100%;
+ border-collapse:collapse;
+}
+
+
+td,th{
+ border:1px solid #475569;
+ padding:15px;
+}
+
+th{
+ background:#334155;
+}
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+<div class="header">
+
+<h1>Logging Essentials</h1>
+
+<p>
+Understanding logs in modern microservices
+</p>
+
+</div>
+
+
+
+<section>
+
+
+
+
+
+<div class="card">
+
+<h2>What Are Logs?</h2>
+
+
+<p>
+
+Logs are messages written by applications to explain what happened.
+
+</p>
+
+
+<p>
+
+Example ecommerce application:
+
+</p>
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Customer opens website
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Adds product to cart
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Makes payment
+
+</div>
+
+
+</div>
+
+
+<p>
+
+During this journey application writes messages.
+
+</p>
+
+
+<div class="code">
+
+User opened homepage
+
+
+Product added to cart
+
+
+Payment successful
+
+
+Order created
+
+</div>
+
+
+<p>
+
+These messages are logs.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Why Do We Need Logs?</h2>
+
+
+
+<p>
+
+Metrics tell us:
+
+Something happened.
+
+</p>
+
+
+<div class="code">
+
+payment_error_total = 100
+
+</div>
+
+
+
+<p>
+
+But logs explain:
+
+Why it happened.
+
+</p>
+
+
+
+<div class="code">
+
+Payment failed
+
+
+Reason:
+
+
+Bank timeout
+
+
+User:
+
+
+12345
+
+
+Order:
+
+
+98765
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>1. Unstructured Logs</h2>
+
+
+
+<p>
+
+Normal text messages written by applications.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+Payment failed for user 1001 because bank timeout
+
+
+</div>
+
+
+
+Problems:
+
+
+<ul>
+
+<li>Difficult for machines to search</li>
+
+<li>No fixed format</li>
+
+<li>Hard to create dashboards</li>
+
+<li>Difficult in large systems</li>
+
+
+</ul>
+
+
+
+
+Example problem:
+
+
+<div class="code">
+
+Developer 1:
+
+
+payment failed user=100
+
+
+
+Developer 2:
+
+
+ERROR payment issue customer 100
+
+
+
+Same event
+
+Different format
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>2. Structured Logs</h2>
+
+
+
+<p>
+
+Structured logs store information in fixed fields.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+{
+ "level":"ERROR",
+
+ "service":"payment",
+
+ "user_id":"1001",
+
+ "message":"payment failed",
+
+ "reason":"bank timeout"
+}
+
+</div>
+
+
+
+
+Now computers understand every field.
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Structured vs Unstructured</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Unstructured</th>
+
+<th>Structured</th>
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Payment failed user 100
+
+</td>
+
+
+<td>
+
+"user_id":"100"
+
+</td>
+
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Only humans understand
+
+</td>
+
+
+<td>
+
+Machines understand
+
+</td>
+
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Hard searching
+
+</td>
+
+
+<td>
+
+Easy filtering
+
+</td>
+
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Bad for microservices
+
+</td>
+
+
+<td>
+
+Best for microservices
+
+</td>
+
+
+</tr>
+
+
+</table>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>3. JSON Logging</h2>
+
+
+
+<p>
+
+JSON is the most common structured log format.
+
+</p>
+
+
+
+Why JSON?
+
+
+<ul>
+
+<li>Every language supports it</li>
+
+<li>Easy to search</li>
+
+<li>Works well with log systems</li>
+
+
+</ul>
+
+
+
+
+Example:
+
+
+<div class="code">
+
+{
+
+
+"time":"2026-01-01 10:00:00",
+
+
+"level":"INFO",
+
+
+"service":"checkout",
+
+
+"message":"checkout completed",
+
+
+"order_id":"500"
+
+
+}
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>4. Contextual Logging</h2>
+
+
+
+<p>
+
+In microservices one request travels through many applications.
+
+</p>
+
+
+Example:
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Frontend
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Cart Service
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Payment Service
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Shipping Service
+
+</div>
+
+
+</div>
+
+
+
+
+Question:
+
+
+<p>
+
+If payment fails, how do we find all logs belonging to one customer request?
+
+</p>
+
+
+
+Answer:
+
+
+Context.
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Trace ID and Span ID</h2>
+
+
+
+<h3>Trace ID</h3>
+
+
+<p>
+
+Unique ID for the complete request journey.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+Customer checkout request
+
+
+trace_id = abc123
+
+
+</div>
+
+
+
+Every service keeps same trace id:
+
+
+<div class="code">
+
+Cart Service
+
+
+trace_id=abc123
+
+
+
+
+
+Payment Service
+
+
+trace_id=abc123
+
+
+
+
+
+Shipping Service
+
+
+trace_id=abc123
+
+</div>
+
+
+
+
+
+<h3>Span ID</h3>
+
+
+<p>
+
+Unique ID for one operation inside the journey.
+
+</p>
+
+
+
+Example:
+
+
+
+<div class="code">
+
+Trace ID:
+
+
+Full checkout journey
+
+
+
+
+Span IDs:
+
+
+Cart operation
+
+
+Payment operation
+
+
+Database operation
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Contextual Log Example</h2>
+
+
+
+<div class="code">
+
+{
+
+
+"service":"payment",
+
+
+"level":"ERROR",
+
+
+"message":"bank timeout",
+
+
+"trace_id":"abc123",
+
+
+"span_id":"xyz789"
+
+
+}
+
+</div>
+
+
+
+Now engineers can find:
+
+
+<ul>
+
+<li>Exact failed request</li>
+
+<li>Related logs</li>
+
+<li>Related traces</li>
+
+
+</ul>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Logging Best Practices for Microservices</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Practice</th>
+
+<th>Reason</th>
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Use JSON logs
+
+</td>
+
+
+<td>
+
+Easy searching and filtering
+
+</td>
+
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Always add service name
+
+</td>
+
+
+<td>
+
+Know which application created log
+
+</td>
+
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Add trace id
+
+</td>
+
+
+<td>
+
+Connect logs with traces
+
+</td>
+
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Use proper levels
+
+</td>
+
+
+<td>
+
+Separate normal and error events
+
+</td>
+
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Avoid sensitive data
+
+</td>
+
+
+<td>
+
+Protect users
+
+</td>
+
+
+</tr>
+
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Log Levels</h2>
+
+
+
+<div class="code">
+
+DEBUG:
+
+
+Developer details
+
+
+
+
+
+INFO:
+
+
+Normal application events
+
+
+
+
+
+WARN:
+
+
+Something unusual
+
+
+
+
+
+ERROR:
+
+
+Something failed
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Final Memory Rule</h2>
+
+
+
+<div class="code">
+
+Logs:
+
+
+Explain what happened
+
+
+
+
+Structured Logs:
+
+
+Organized information
+
+
+
+
+JSON:
+
+
+Common log format
+
+
+
+
+Trace ID:
+
+
+Connect complete request journey
+
+
+
+
+Span ID:
+
+
+One step inside journey
+
+
+
+
+Microservices:
+
+
+Always log with context
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+</section>
+
+
+
+</body>
+
+
+</html>
