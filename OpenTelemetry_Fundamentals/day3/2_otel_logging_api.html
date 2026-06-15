@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>OpenTelemetry Logging API</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+
+.header{
+
+ background:linear-gradient(135deg,#1e40af,#581c87);
+
+ padding:50px;
+
+ text-align:center;
+
+}
+
+
+.header h1{
+
+ font-size:44px;
+
+}
+
+
+.header p{
+
+ font-size:22px;
+
+}
+
+
+
+section{
+
+ padding:40px 70px;
+
+}
+
+
+
+.card{
+
+ background:#1e293b;
+
+ padding:30px;
+
+ margin-bottom:30px;
+
+ border-radius:18px;
+
+}
+
+
+
+h2{
+
+ color:#93c5fd;
+
+}
+
+
+h3{
+
+ color:#60a5fa;
+
+}
+
+
+.code{
+
+ background:#020617;
+
+ color:#86efac;
+
+ padding:20px;
+
+ border-radius:12px;
+
+ white-space:pre-line;
+
+ margin-top:15px;
+
+}
+
+
+
+.flow{
+
+ background:#020617;
+
+ padding:25px;
+
+ border-radius:15px;
+
+ display:flex;
+
+ flex-direction:column;
+
+ align-items:center;
+
+ gap:15px;
+
+ margin:20px 0;
+
+}
+
+
+
+.box{
+
+ background:#334155;
+
+ padding:15px 35px;
+
+ border-radius:12px;
+
+ min-width:380px;
+
+ text-align:center;
+
+}
+
+
+
+.arrow{
+
+ color:#38bdf8;
+
+ font-size:30px;
+
+}
+
+
+
+table{
+
+ width:100%;
+
+ border-collapse:collapse;
+
+ margin-top:20px;
+
+}
+
+
+td,th{
+
+ border:1px solid #475569;
+
+ padding:15px;
+
+}
+
+
+th{
+
+ background:#334155;
+
+}
+
+
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+
+
+
+<div class="header">
+
+<h1>OpenTelemetry Logging API</h1>
+
+<p>
+
+Creating intelligent logs for distributed applications
+
+</p>
+
+</div>
+
+
+
+
+
+<section>
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Why Do We Need OpenTelemetry Logging?</h2>
+
+
+
+<p>
+
+Traditional applications already create logs.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+Payment failed
+
+
+User id 500
+
+
+Bank timeout
+
+</div>
+
+
+
+<p>
+
+This is useful for humans.
+
+But modern microservices need more information.
+
+</p>
+
+
+
+
+Questions:
+
+
+<ul>
+
+
+<li>Which service generated this?</li>
+
+<li>Which request created this error?</li>
+
+<li>Which trace belongs to this log?</li>
+
+<li>Which customer journey failed?</li>
+
+
+</ul>
+
+
+
+
+<p>
+
+OpenTelemetry makes logs connected and meaningful.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Traditional Logging Problem</h2>
+
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Checkout Service
+
+ERROR payment failed
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Payment Service
+
+ERROR timeout
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Database Service
+
+ERROR connection issue
+
+</div>
+
+
+
+</div>
+
+
+
+
+<p>
+
+All errors are separate.
+
+We cannot easily know they belong to the same customer request.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>OpenTelemetry Logging Solution</h2>
+
+
+
+
+<p>
+
+OTel attaches context information automatically.
+
+</p>
+
+
+
+
+<div class="code">
+
+Checkout Log
+
+
+trace_id = abc123
+
+
+
+
+Payment Log
+
+
+trace_id = abc123
+
+
+
+
+Database Log
+
+
+trace_id = abc123
+
+
+</div>
+
+
+
+
+<p>
+
+Now one trace id connects the complete journey.
+
+</p>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>What is an OpenTelemetry Log Record?</h2>
+
+
+
+<p>
+
+A Log Record is a structured event created by an application.
+
+</p>
+
+
+
+<p>
+
+Instead of random text, OTel creates a standard object.
+
+</p>
+
+
+
+
+<div class="code">
+
+Log Record
+{
+
+
+Timestamp
+
+
+Severity
+
+
+Body
+
+
+Attributes
+
+
+Trace ID
+
+
+Span ID
+
+
+Resource Information
+
+
+}
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Structured Log Record Example</h2>
+
+
+
+Ecommerce checkout failure:
+
+
+
+<div class="code">
+
+{
+
+
+"time":
+
+"2026-01-01 10:00:00",
+
+
+
+"severity":
+
+"ERROR",
+
+
+
+"body":
+
+"Payment failed",
+
+
+
+"trace_id":
+
+"abc123",
+
+
+
+"span_id":
+
+"xyz999",
+
+
+
+"attributes":{
+
+
+"user_id":"500",
+
+
+"order_id":"900",
+
+
+"payment_gateway":"stripe"
+
+
+}
+
+
+}
+
+</div>
+
+
+
+<p>
+
+Every field has meaning.
+
+Machines can search and analyze this easily.
+
+</p>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Important Parts of Log Record</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Field</th>
+
+<th>Meaning</th>
+
+</tr>
+
+
+
+<tr>
+
+<td>Timestamp</td>
+
+<td>When event happened</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Severity</td>
+
+<td>Error level INFO, WARN, ERROR</td>
+
+</tr>
+
+
+<tr>
+
+<td>Body</td>
+
+<td>Main log message</td>
+
+</tr>
+
+
+<tr>
+
+<td>Attributes</td>
+
+<td>Extra information</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Trace ID</td>
+
+<td>Connect logs with request journey</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Span ID</td>
+
+<td>Connect log with exact operation</td>
+
+</tr>
+
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>What Are Attributes?</h2>
+
+
+
+<p>
+
+Attributes are extra key-value details added to logs.
+
+</p>
+
+
+
+
+Example:
+
+
+<div class="code">
+
+Message:
+
+
+Checkout completed
+
+
+
+
+Attributes:
+
+
+order_id=1001
+
+
+amount=5000
+
+
+country=India
+
+
+payment=success
+
+</div>
+
+
+
+<p>
+
+Instead of searching text, we filter using attributes.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Resource Attributes</h2>
+
+
+
+<p>
+
+Resource attributes describe who created the log.
+
+</p>
+
+
+
+
+Example:
+
+
+<div class="code">
+
+{
+
+
+service.name="checkout-service"
+
+
+environment="production"
+
+
+region="asia"
+
+
+version="v2"
+
+}
+
+</div>
+
+
+
+Useful questions:
+
+
+<ul>
+
+<li>Show only checkout-service logs</li>
+
+<li>Show production errors</li>
+
+<li>Compare version v1 and v2</li>
+
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Context Propagation into Logs</h2>
+
+
+
+<p>
+
+This is the most powerful feature.
+
+</p>
+
+
+
+<p>
+
+When a request moves between services, OpenTelemetry carries context.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Customer Checkout
+
+trace_id abc123
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Cart Service
+
+trace_id abc123
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Payment Service
+
+trace_id abc123
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Database
+
+trace_id abc123
+
+</div>
+
+
+
+</div>
+
+
+
+
+<p>
+
+All logs automatically contain the same trace id.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Without Context vs With Context</h2>
+
+
+
+
+<h3>Without OTel Context</h3>
+
+
+
+<div class="code">
+
+payment failed
+
+
+database slow
+
+
+checkout error
+
+
+</div>
+
+
+
+
+<p>
+
+Cannot know relationship.
+
+</p>
+
+
+
+
+
+<h3>With OTel Context</h3>
+
+
+
+<div class="code">
+
+trace_id=abc123
+
+
+checkout started
+
+
+
+
+trace_id=abc123
+
+
+payment failed
+
+
+
+
+trace_id=abc123
+
+
+database timeout
+
+</div>
+
+
+
+
+<p>
+
+One search shows complete failure journey.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>OTel Logging Flow</h2>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Application creates log
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+OTel Logging API
+
+creates Log Record
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Adds attributes
+
+Adds trace context
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Exporter sends logs
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+
+<div class="box">
+
+Alloy
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Loki
+
+</div>
+
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Simple Memory Rule</h2>
+
+
+
+<div class="code">
+
+Normal Logs:
+
+
+What happened?
+
+
+
+
+
+OTel Logs:
+
+
+What happened
+
++
+
+Where happened
+
++
+
+Why happened
+
++
+
+Which request caused it
+
+
+
+
+
+Attributes:
+
+
+Extra searchable information
+
+
+
+
+
+Trace ID:
+
+
+Connect all services
+
+
+
+
+
+Span ID:
+
+
+Exact operation
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+</section>
+
+
+
+</body>
+
+
+</html>
