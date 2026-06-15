@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>OpenTelemetry Metrics Learning</title>
+
+<style>
+
+*{
+ box-sizing:border-box;
+}
+
+body{
+ margin:0;
+ font-family:'Segoe UI',Arial,sans-serif;
+ background:#0f172a;
+ color:white;
+}
+
+
+.hero{
+
+ background:linear-gradient(135deg,#2563eb,#7c3aed);
+
+ padding:50px;
+
+ text-align:center;
+
+}
+
+
+.hero h1{
+
+ font-size:48px;
+
+ margin:0;
+
+}
+
+
+.hero p{
+
+ font-size:22px;
+
+}
+
+
+
+
+section{
+
+ padding:40px;
+
+}
+
+
+
+.card{
+
+ background:#1e293b;
+
+ border-radius:20px;
+
+ padding:25px;
+
+ margin:20px 0;
+
+ box-shadow:0 10px 30px #0008;
+
+ transition:.3s;
+
+}
+
+
+.card:hover{
+
+ transform:translateY(-5px);
+
+}
+
+
+
+.grid{
+
+ display:grid;
+
+ grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+
+ gap:20px;
+
+}
+
+
+
+.badge{
+
+ display:inline-block;
+
+ padding:8px 16px;
+
+ border-radius:20px;
+
+ background:#2563eb;
+
+ margin-bottom:15px;
+
+}
+
+
+
+
+.flow{
+
+ display:flex;
+
+ flex-wrap:wrap;
+
+ justify-content:center;
+
+ align-items:center;
+
+ gap:15px;
+
+}
+
+
+
+.box{
+
+ background:#334155;
+
+ padding:22px;
+
+ border-radius:15px;
+
+ min-width:170px;
+
+ text-align:center;
+
+ font-size:18px;
+
+}
+
+
+
+.arrow{
+
+ font-size:30px;
+
+ color:#38bdf8;
+
+}
+
+
+
+.code{
+
+ background:#020617;
+
+ padding:20px;
+
+ border-radius:15px;
+
+ color:#4ade80;
+
+ margin-top:15px;
+
+ white-space:pre-line;
+
+}
+
+
+
+.footer{
+
+ text-align:center;
+
+ padding:40px;
+
+ background:#020617;
+
+}
+
+
+
+h1{
+
+ color:#93c5fd;
+
+}
+
+
+</style>
+
+
+</head>
+
+
+
+<body>
+
+
+
+
+<div class="hero">
+
+<h1>OpenTelemetry Metrics Journey</h1>
+
+<p>
+Application Metrics from Flask to Grafana
+</p>
+
+</div>
+
+
+
+
+
+<section>
+
+
+<h1>Why Do We Need Metrics?</h1>
+
+
+<div class="card">
+
+
+Imagine an ecommerce application.
+
+
+<br><br>
+
+
+Users are doing:
+
+
+<ul>
+
+<li>Adding products to cart</li>
+
+<li>Doing checkout</li>
+
+<li>Making payments</li>
+
+</ul>
+
+
+Business wants answers:
+
+
+<ul>
+
+<li>How many carts were created?</li>
+
+<li>How many payments failed?</li>
+
+<li>Is checkout slow?</li>
+
+<li>Is the application healthy?</li>
+
+</ul>
+
+
+These numbers collected over time are called metrics.
+
+
+</div>
+
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+
+<h1>1. Metrics Concepts</h1>
+
+
+
+<div class="grid">
+
+
+
+<div class="card">
+
+<h2>Counter</h2>
+
+
+<p>
+Counter always increases.
+</p>
+
+
+Example:
+
+
+<div class="code">
+cart_count_total
+
+10
+50
+100
+500
+</div>
+
+
+Used for:
+
+<ul>
+
+<li>Total API requests</li>
+
+<li>Total orders</li>
+
+<li>Total errors</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Gauge</h2>
+
+
+<p>
+
+Gauge increases and decreases.
+
+</p>
+
+
+
+<div class="code">
+active_users
+
+100
+
+200
+
+50
+</div>
+
+
+
+Used for:
+
+
+<ul>
+
+<li>CPU usage</li>
+
+<li>Memory usage</li>
+
+<li>Queue size</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Histogram</h2>
+
+
+<p>
+
+Measures distribution.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+Checkout response time
+
+100 ms
+
+300 ms
+
+2 sec
+</div>
+
+
+
+Used for:
+
+
+<ul>
+
+<li>Latency</li>
+
+<li>Request duration</li>
+
+<li>Database time</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+</div>
+
+
+</section>
+
+
+
+
+
+
+
+
+
+<section>
+
+
+<h1>RED vs USE Metrics</h1>
+
+
+<div class="grid">
+
+
+
+<div class="card">
+
+
+<span class="badge">
+
+Application Health
+
+</span>
+
+
+
+<h2>RED Method</h2>
+
+
+<ul>
+
+<li>Rate - Number of requests</li>
+
+<li>Errors - Number of failures</li>
+
+<li>Duration - Response time</li>
+
+</ul>
+
+
+Example:
+
+<div class="code">
+
+Checkout API
+
+100 requests/sec
+
+2 errors
+
+200 ms latency
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+<div class="card">
+
+
+<span class="badge">
+
+Infrastructure Health
+
+</span>
+
+
+<h2>USE Method</h2>
+
+
+
+<ul>
+
+<li>Utilization - How busy?</li>
+
+<li>Saturation - Is it overloaded?</li>
+
+<li>Errors - System failures</li>
+
+</ul>
+
+
+Example:
+
+
+<div class="code">
+
+CPU = 80%
+
+Queue = Full
+
+Disk errors = 5
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</section>
+
+
+
+
+
+
+
+
+
+<section>
+
+
+<h1>2. OpenTelemetry Instrumentation</h1>
+
+
+<div class="card">
+
+
+Instrumentation means adding monitoring capability to the application.
+
+
+<div class="code">
+
+Flask Application
+
+creates
+
+cart_count
+
+checkout_count
+
+
+using OpenTelemetry SDK
+
+</div>
+
+
+Example:
+
+
+<div class="code">
+
+meter.create_counter(
+ "cart_count"
+)
+
+
+cart_counter.add(1)
+
+</div>
+
+
+</div>
+
+
+</section>
+
+
+
+
+
+
+
+
+
+<section>
+
+
+<h1>3. Complete Metrics Flow</h1>
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Flask App
+
+
+<br>
+
+
+Business Logic
+
+
+</div>
+
+
+<div class="arrow">
+
+→
+
+</div>
+
+
+
+
+<div class="box">
+
+OpenTelemetry SDK
+
+
+<br>
+
+
+Create Metrics
+
+
+</div>
+
+
+
+<div class="arrow">
+
+→
+
+</div>
+
+
+
+
+<div class="box">
+
+Grafana Alloy
+
+
+<br>
+
+
+Receive Process Export
+
+
+</div>
+
+
+
+<div class="arrow">
+
+→
+
+</div>
+
+
+
+
+
+<div class="box">
+
+Prometheus
+
+
+<br>
+
+
+Recent Metrics
+
+
+</div>
+
+
+
+
+<div class="box">
+
+Mimir
+
+
+<br>
+
+
+Long Term Metrics
+
+
+</div>
+
+
+
+
+<div class="box">
+
+MinIO / S3
+
+
+<br>
+
+
+Storage
+
+
+</div>
+
+
+
+
+
+<div class="box">
+
+Grafana
+
+
+<br>
+
+
+Dashboards
+
+
+</div>
+
+
+
+</div>
+
+
+
+</section>
+
+
+
+
+
+
+
+
+
+<section>
+
+
+<h1>4. Alloy Responsibilities</h1>
+
+
+
+<div class="grid">
+
+
+
+<div class="card">
+
+
+<h2>Receive</h2>
+
+
+
+Alloy receives telemetry data.
+
+
+<div class="code">
+
+OTLP Receiver
+
+Port 4317
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Process</h2>
+
+
+Modify metrics before storage.
+
+
+<div class="code">
+
+Add labels
+
+
+environment="prod"
+
+team="checkout"
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Export</h2>
+
+
+Send data to backends.
+
+
+<div class="code">
+
+Prometheus
+
+
+Mimir
+
+</div>
+
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+</section>
+
+
+
+
+
+
+
+
+
+
+<section>
+
+
+<h1>5. Mimir Long Term Storage</h1>
+
+
+<div class="card">
+
+
+Prometheus is optimized for recent operational metrics.
+
+
+<br><br>
+
+
+Mimir is designed for large scale storage.
+
+
+<div class="code">
+
+Alloy
+
+  |
+
+Remote Write
+
+  |
+
+Mimir
+
+  |
+
+MinIO / S3
+
+</div>
+
+
+
+Advantages:
+
+
+<ul>
+
+<li>Store years of metrics</li>
+
+<li>Scale horizontally</li>
+
+<li>Support multiple teams</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+</section>
+
+
+
+
+
+
+
+
+
+<section>
+
+
+<h1>Mimir Multi Tenancy</h1>
+
+
+<div class="grid">
+
+
+<div class="card">
+
+<h2>Tenant A</h2>
+
+Payment Team Metrics
+
+</div>
+
+
+
+<div class="card">
+
+<h2>Tenant B</h2>
+
+Cart Team Metrics
+
+</div>
+
+
+
+<div class="card">
+
+<h2>Tenant C</h2>
+
+Search Team Metrics
+
+</div>
+
+
+
+</div>
+
+
+</section>
+
+
+
+
+
+
+
+
+<div class="footer">
+
+
+<h2>Simple Summary</h2>
+
+
+<p>
+
+Application creates metrics
+
+<br>
+
+OpenTelemetry collects
+
+<br>
+
+Alloy processes and sends
+
+<br>
+
+Prometheus and Mimir store
+
+<br>
+
+Grafana visualizes
+
+
+</p>
+
+
+</div>
+
+
+
+
+</body>
+
+
+</html>
