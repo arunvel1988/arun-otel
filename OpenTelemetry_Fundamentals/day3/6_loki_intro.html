@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Loki Architecture Explained</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+.header{
+ background:linear-gradient(135deg,#1e40af,#581c87);
+ padding:50px;
+ text-align:center;
+}
+
+.header h1{
+ font-size:44px;
+}
+
+.header p{
+ font-size:22px;
+}
+
+section{
+ padding:40px 70px;
+}
+
+.card{
+ background:#1e293b;
+ padding:30px;
+ margin-bottom:30px;
+ border-radius:18px;
+}
+
+
+h2{
+ color:#93c5fd;
+}
+
+
+h3{
+ color:#60a5fa;
+}
+
+
+.code{
+ background:#020617;
+ color:#86efac;
+ padding:20px;
+ border-radius:12px;
+ white-space:pre-line;
+}
+
+
+.flow{
+ background:#020617;
+ padding:25px;
+ border-radius:15px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ gap:15px;
+ margin:20px 0;
+}
+
+
+.box{
+ background:#334155;
+ padding:15px 35px;
+ border-radius:12px;
+ min-width:420px;
+ text-align:center;
+}
+
+
+.arrow{
+ color:#38bdf8;
+ font-size:30px;
+}
+
+
+table{
+ width:100%;
+ border-collapse:collapse;
+}
+
+td,th{
+ border:1px solid #475569;
+ padding:15px;
+}
+
+th{
+ background:#334155;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="header">
+
+<h1>Grafana Loki Architecture</h1>
+
+<p>
+How billions of logs are stored and searched efficiently
+</p>
+
+</div>
+
+
+
+<section>
+
+
+
+
+
+<div class="card">
+
+<h2>Why Loki Exists?</h2>
+
+<p>
+
+Modern applications generate huge amounts of logs.
+
+</p>
+
+
+Example ecommerce company:
+
+
+<div class="code">
+
+Checkout Service
+
+
+10000 logs/min
+
+
+
+
+Payment Service
+
+
+20000 logs/min
+
+
+
+
+Cart Service
+
+
+50000 logs/min
+
+</div>
+
+
+
+<p>
+
+Storing and searching millions of logs becomes expensive.
+
+Loki solves this problem.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Traditional Logging Problem</h2>
+
+
+<p>
+
+Systems like Elasticsearch index every word.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+ERROR payment failed for user 500
+
+
+Indexed:
+
+
+ERROR
+
+payment
+
+failed
+
+user
+
+500
+
+</div>
+
+
+
+Problems:
+
+
+<ul>
+
+<li>Huge storage usage</li>
+
+<li>Expensive indexing</li>
+
+<li>More infrastructure cost</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Loki's Different Approach</h2>
+
+
+
+<p>
+
+Loki does not index complete log text.
+
+</p>
+
+
+<p>
+
+Loki indexes only labels.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+Labels:
+
+
+service="payment"
+
+
+environment="prod"
+
+
+level="error"
+
+
+
+
+Actual Log:
+
+
+Payment failed for user 500
+
+
+</div>
+
+
+
+<p>
+
+Small index.
+
+Cheap storage.
+
+Fast filtering.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>Complete Loki Write Architecture</h2>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Application Logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Grafana Alloy
+
+Collect + Process
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Distributor
+
+First Entry Point
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Ingester
+
+Create Chunks
+
+</div>
+
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Object Storage
+
+S3 / MinIO
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>1. Distributor</h2>
+
+
+<p>
+
+Distributor is the front door of Loki.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+Incoming:
+
+
+service=checkout
+
+
+message="payment started"
+
+</div>
+
+
+Distributor responsibilities:
+
+
+<ul>
+
+<li>Receives logs from Alloy</li>
+
+<li>Validates log data</li>
+
+<li>Checks tenant</li>
+
+<li>Sends logs to ingesters</li>
+
+</ul>
+
+
+
+Simple thinking:
+
+
+<div class="code">
+
+Distributor = Reception desk
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>2. Ingester</h2>
+
+
+
+<p>
+
+Ingester receives logs from Distributor.
+
+</p>
+
+
+
+Responsibilities:
+
+
+<ul>
+
+<li>Accept incoming logs</li>
+
+<li>Group logs by labels</li>
+
+<li>Create compressed chunks</li>
+
+<li>Upload chunks to storage</li>
+
+</ul>
+
+
+
+
+Example:
+
+
+<div class="code">
+
+Labels:
+
+
+service="payment"
+
+
+
+
+Logs:
+
+
+payment started
+
+
+payment completed
+
+
+payment failed
+
+
+
+
+Become one chunk
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>What is a Chunk?</h2>
+
+
+<p>
+
+A chunk is a compressed group of logs.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+Chunk:
+
+
+Time:
+
+
+10AM - 11AM
+
+
+
+
+Labels:
+
+
+service=cart
+
+
+
+
+Contains:
+
+
+Thousands of cart logs
+
+</div>
+
+
+
+<p>
+
+Loki stores chunks instead of individual files.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Object Storage</h2>
+
+
+
+<p>
+
+Chunks are uploaded into cheap long term storage.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Ingester
+
+Creates Chunk
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+S3 / MinIO
+
+Stores Chunk
+
+</div>
+
+
+
+</div>
+
+
+
+Benefits:
+
+
+<ul>
+
+<li>Store months or years of logs</li>
+
+<li>Cheap storage</li>
+
+<li>Easy scaling</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Index in Loki</h2>
+
+
+<p>
+
+Index tells Loki where logs are stored.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+Index:
+
+
+service=payment
+
+
+time=10AM
+
+
+
+Location:
+
+
+chunk-file-123
+
+</div>
+
+
+
+<p>
+
+Index is small because only labels are indexed.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Complete Query Architecture</h2>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Grafana User Searches
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Query Frontend
+
+Optimize Query
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Querier
+
+Find Logs
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Object Storage
+
+Read Chunks
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Querier</h2>
+
+
+
+<p>
+
+Querier answers LogQL queries.
+
+</p>
+
+
+Example Grafana query:
+
+
+<div class="code">
+
+{service="payment"}
+
+</div>
+
+
+Querier:
+
+
+<ul>
+
+<li>Checks index</li>
+
+<li>Finds correct chunks</li>
+
+<li>Reads logs</li>
+
+<li>Returns result</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Query Frontend</h2>
+
+
+
+<p>
+
+Large searches can be heavy.
+
+Query frontend improves performance.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+Search:
+
+
+30 days payment logs
+
+
+
+
+
+Query frontend splits:
+
+
+Day 1
+
+
+Day 2
+
+
+Day 3
+
+
+
+
+Runs faster
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Compactor</h2>
+
+
+<p>
+
+Over time many index files are created.
+
+</p>
+
+
+Compactor:
+
+
+<ul>
+
+<li>Merges index files</li>
+
+<li>Applies retention rules</li>
+
+<li>Deletes old logs</li>
+
+</ul>
+
+
+Example:
+
+
+<div class="code">
+
+Keep logs:
+
+
+90 days
+
+
+
+
+Delete:
+
+
+Older than 90 days
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Full Ecommerce Log Journey</h2>
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Customer Payment Failed
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Payment Service writes log
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy collects
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Loki Distributor
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Ingester creates chunks
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+MinIO / S3 stores
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Grafana searches
+
+</div>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Memory Rule</h2>
+
+
+<div class="code">
+
+Distributor:
+
+
+Receives logs
+
+
+
+
+Ingester:
+
+
+Creates chunks
+
+
+
+
+Chunk:
+
+
+Compressed logs
+
+
+
+
+Index:
+
+
+Finds chunks
+
+
+
+
+Object Storage:
+
+
+Stores logs
+
+
+
+
+Querier:
+
+
+Reads logs
+
+
+
+
+Grafana:
+
+
+Displays logs
+
+</div>
+
+
+</div>
+
+
+
+
+
+</section>
+
+
+</body>
+
+</html>
