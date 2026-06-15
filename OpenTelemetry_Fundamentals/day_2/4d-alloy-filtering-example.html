@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>How Alloy Filters Metrics</title>
+
+<style>
+
+body{
+ margin:0;
+ background:#0f172a;
+ color:#e5e7eb;
+ font-family:Segoe UI,Arial;
+ line-height:1.7;
+}
+
+
+.header{
+ background:linear-gradient(135deg,#1e40af,#581c87);
+ padding:50px;
+ text-align:center;
+}
+
+
+.header h1{
+ font-size:44px;
+}
+
+
+section{
+ padding:40px 70px;
+}
+
+
+.card{
+ background:#1e293b;
+ padding:30px;
+ margin-bottom:30px;
+ border-radius:18px;
+}
+
+
+h2{
+ color:#93c5fd;
+}
+
+
+h3{
+ color:#60a5fa;
+}
+
+
+.code{
+ background:#020617;
+ color:#86efac;
+ padding:20px;
+ border-radius:12px;
+ white-space:pre-line;
+}
+
+
+.flow{
+
+ background:#020617;
+
+ padding:25px;
+
+ border-radius:15px;
+
+ display:flex;
+
+ flex-direction:column;
+
+ align-items:center;
+
+ gap:15px;
+
+}
+
+
+.box{
+
+ background:#334155;
+
+ padding:15px 30px;
+
+ border-radius:12px;
+
+ min-width:350px;
+
+ text-align:center;
+
+}
+
+
+.arrow{
+
+font-size:30px;
+
+color:#38bdf8;
+
+}
+
+
+</style>
+
+</head>
+
+
+<body>
+
+
+
+<div class="header">
+
+<h1>How Metric Filtering Works inside Alloy</h1>
+
+<p>
+Real example using Ecommerce application
+</p>
+
+</div>
+
+
+
+
+<section>
+
+
+
+
+<div class="card">
+
+<h2>Where Exactly Filtering Happens?</h2>
+
+
+<p>
+
+Filtering happens inside Alloy after metrics are collected but before they are sent to storage.
+
+</p>
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+Flask Ecommerce App
+
+<br>
+
+creates metrics
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy Scrape
+
+<br>
+
+/metrics collected
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+FILTERING STAGE
+
+<br>
+
+prometheus.relabel
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Prometheus / Mimir
+
+<br>
+
+stores clean metrics
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Step 1: Application Creates Many Metrics</h2>
+
+
+<p>
+
+Your ecommerce Flask app exposes:
+
+</p>
+
+
+
+<div class="code">
+
+/metrics output:
+
+
+cart_count_total 500
+
+
+checkout_count_total 200
+
+
+payment_failed_total 20
+
+
+debug_cart_test_total 999
+
+
+local_developer_metric 123
+
+
+python_gc_collection_total 400
+
+
+</div>
+
+
+
+<p>
+
+Everything is currently visible.
+
+Alloy has not filtered anything yet.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Step 2: Alloy Scrapes Metrics</h2>
+
+
+
+<p>
+
+Alloy first collects everything.
+
+</p>
+
+
+
+<div class="code">
+
+prometheus.scrape "ecommerce" {
+
+
+targets = [
+
+ {
+
+
+  __address__="flask-app:5000"
+
+
+ }
+
+
+]
+
+
+
+forward_to = [
+
+prometheus.relabel.filter.receiver
+
+]
+
+
+}
+
+</div>
+
+
+
+
+<p>
+
+Important:
+
+Metrics are NOT sent directly to storage.
+
+They first go to relabel filtering.
+
+</p>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Step 3: Filtering Rule</h2>
+
+
+<p>
+
+Now Alloy decides what should be removed.
+
+</p>
+
+
+
+Example:
+
+Remove all debug metrics.
+
+
+
+<div class="code">
+
+prometheus.relabel "filter" {
+
+
+rule {
+
+
+source_labels = ["__name__"]
+
+
+regex = "debug_.*"
+
+
+action = "drop"
+
+
+}
+
+
+
+forward_to = [
+
+prometheus.remote_write.mimir.receiver
+
+]
+
+
+}
+
+</div>
+
+
+
+
+Explanation:
+
+
+<ul>
+
+
+<li>__name__ means metric name</li>
+
+<li>regex finds matching metrics</li>
+
+<li>debug_.* means anything starting with debug</li>
+
+<li>action drop removes it</li>
+
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Before Filtering vs After Filtering</h2>
+
+
+
+
+<h3>Before Alloy Filtering</h3>
+
+
+<div class="code">
+
+
+cart_count_total
+
+
+checkout_count_total
+
+
+payment_failed_total
+
+
+debug_cart_test_total
+
+
+local_developer_metric
+
+
+</div>
+
+
+
+
+<h3>After Alloy Filtering</h3>
+
+
+
+<div class="code">
+
+
+cart_count_total
+
+
+checkout_count_total
+
+
+payment_failed_total
+
+
+</div>
+
+
+
+
+<p>
+
+Only useful metrics reach Prometheus and Mimir.
+
+</p>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Dropping Labels Example</h2>
+
+
+<p>
+
+Sometimes the metric is useful but one label is dangerous.
+
+</p>
+
+
+Before:
+
+
+<div class="code">
+
+checkout_total{
+
+
+service="checkout",
+
+
+user_id="12345"
+
+
+}
+
+
+</div>
+
+
+Problem:
+
+
+<p>
+
+Millions of users create millions of time series.
+
+</p>
+
+
+
+Alloy removes only user_id:
+
+
+
+<div class="code">
+
+rule {
+
+
+action = "labeldrop"
+
+
+regex = "user_id"
+
+
+}
+
+</div>
+
+
+
+After:
+
+
+
+<div class="code">
+
+checkout_total{
+
+
+service="checkout"
+
+
+}
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Complete Production Example</h2>
+
+
+
+
+<div class="flow">
+
+
+<div class="box">
+
+10000 Raw Metrics
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Alloy Filtering Rules
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+Remove debug metrics
+
+Remove bad labels
+
+Remove temporary metrics
+
+</div>
+
+
+<div class="arrow">↓</div>
+
+
+<div class="box">
+
+3000 Important Metrics Stored
+
+</div>
+
+
+
+</div>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>Remember</h2>
+
+
+<div class="code">
+
+Filtering location:
+
+
+Inside Alloy pipeline
+
+
+
+
+Before filtering:
+
+
+Application → Alloy → Raw metrics
+
+
+
+
+After filtering:
+
+
+Application
+
+↓
+
+Alloy scrape
+
+↓
+
+Alloy relabel/filter
+
+↓
+
+Prometheus/Mimir
+
+
+
+
+Goal:
+
+
+Store only useful metrics
+
+</div>
+
+
+</div>
+
+
+
+
+
+</section>
+
+
+</body>
+
+
+</html>
