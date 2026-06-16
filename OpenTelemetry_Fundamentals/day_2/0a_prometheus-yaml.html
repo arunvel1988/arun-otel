@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Prometheus YAML Explained</title>
+
+<style>
+
+body{
+    margin:0;
+    background:#0b1020;
+    font-family:Arial, Helvetica, sans-serif;
+    color:#e5e7eb;
+}
+
+
+.header{
+
+    background:#111827;
+    padding:40px;
+    text-align:center;
+    border-bottom:5px solid #e6522c;
+
+}
+
+
+.header h1{
+
+    margin:0;
+    font-size:42px;
+
+}
+
+
+.header p{
+
+    color:#cbd5e1;
+    font-size:20px;
+
+}
+
+
+
+.container{
+
+    width:90%;
+    margin:auto;
+
+}
+
+
+
+.card{
+
+    background:#111827;
+    margin:30px 0;
+    padding:30px;
+    border-radius:18px;
+    border:1px solid #374151;
+    box-shadow:0 0 25px rgba(230,82,44,0.15);
+
+}
+
+
+
+h2{
+
+    color:#ff7043;
+
+}
+
+
+
+p{
+
+    font-size:20px;
+    line-height:1.7;
+
+}
+
+
+
+.terminal{
+
+    background:#020617;
+    color:#22c55e;
+    padding:25px;
+    border-radius:15px;
+    white-space:pre;
+    font-family:monospace;
+    font-size:18px;
+    overflow:auto;
+
+}
+
+
+
+.code{
+
+    background:#000;
+    color:#38bdf8;
+    padding:20px;
+    border-radius:12px;
+    font-family:monospace;
+    font-size:18px;
+    white-space:pre;
+
+}
+
+
+table{
+
+    width:100%;
+    border-collapse:collapse;
+    font-size:18px;
+
+}
+
+
+
+td,th{
+
+    padding:15px;
+    border:1px solid #374151;
+
+}
+
+
+
+th{
+
+    background:#e6522c;
+
+}
+
+
+
+</style>
+
+
+</head>
+
+
+<body>
+
+
+
+<div class="header">
+
+<h1>
+prometheus.yml Explained
+</h1>
+
+
+<p>
+The configuration file that tells Prometheus what to monitor
+</p>
+
+
+</div>
+
+
+
+
+
+<div class="container">
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+1. What is prometheus.yml?
+</h2>
+
+
+<p>
+
+Prometheus does not automatically know your applications.
+
+prometheus.yml tells Prometheus:
+
+</p>
+
+
+
+<div class="terminal">
+
+What should I monitor?
+
+
+Where are the applications?
+
+
+How frequently should I collect metrics?
+
+
+What rules should I load?
+
+
+Where should I send metrics?
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+2. Basic prometheus.yml Structure
+</h2>
+
+
+
+<div class="code">
+
+global:
+
+
+  scrape_interval: 15s
+
+
+
+scrape_configs:
+
+
+- job_name: ecommerce
+
+
+  static_configs:
+
+
+  - targets:
+
+
+    - app:5000
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+3. Global Section
+</h2>
+
+
+<p>
+
+Global settings apply to all jobs unless overridden.
+
+</p>
+
+
+
+<div class="code">
+
+global:
+
+
+  scrape_interval: 15s
+
+
+  evaluation_interval: 15s
+
+
+</div>
+
+
+
+<div class="terminal">
+
+scrape_interval
+
+
+How often Prometheus collects metrics
+
+
+
+
+evaluation_interval
+
+
+How often alert rules execute
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+4. Scrape Configs
+</h2>
+
+
+<p>
+
+This is the most important section.
+
+It defines what Prometheus monitors.
+
+</p>
+
+
+
+<div class="code">
+
+scrape_configs:
+
+
+
+- job_name: ecommerce
+
+
+
+</div>
+
+
+
+<div class="terminal">
+
+
+A job is a group of targets.
+
+
+
+Examples:
+
+
+
+job = frontend
+
+
+job = database
+
+
+job = kubernetes
+
+
+job = node-exporter
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+5. Targets
+</h2>
+
+
+<p>
+
+Targets are actual applications exposing metrics.
+
+</p>
+
+
+
+<div class="code">
+
+static_configs:
+
+
+ - targets:
+
+
+    - ecommerce:5000
+
+
+    - payment:5000
+
+
+</div>
+
+
+
+<div class="terminal">
+
+
+Prometheus calls:
+
+
+
+http://ecommerce:5000/metrics
+
+
+
+http://payment:5000/metrics
+
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+6. Complete Scrape Flow
+</h2>
+
+
+
+<div class="terminal">
+
+
+prometheus.yml
+
+
+
+      |
+
+
+
+      v
+
+
+
+Find target
+
+
+ecommerce:5000
+
+
+
+      |
+
+
+
+      v
+
+
+
+HTTP GET
+
+
+/metrics
+
+
+
+      |
+
+
+
+      v
+
+
+
+Store result in TSDB
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+7. Labels in prometheus.yml
+</h2>
+
+
+
+<p>
+
+Labels add extra information to metrics.
+
+</p>
+
+
+
+<div class="code">
+
+static_configs:
+
+
+- targets:
+
+
+  - app:5000
+
+
+  labels:
+
+
+    environment: production
+
+
+    team: payments
+
+
+</div>
+
+
+
+Result:
+
+
+
+<div class="terminal">
+
+
+orders_total{
+
+
+ environment="production",
+
+
+ team="payments"
+
+
+}
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+8. Multiple Jobs Example
+</h2>
+
+
+
+<div class="code">
+
+scrape_configs:
+
+
+
+- job_name: application
+
+
+  static_configs:
+
+
+  - targets:
+
+
+    - app:5000
+
+
+
+
+
+- job_name: linux-server
+
+
+  static_configs:
+
+
+  - targets:
+
+
+    - node-exporter:9100
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+9. Alert Rules Configuration
+</h2>
+
+
+
+<p>
+
+Prometheus can load alert files.
+
+</p>
+
+
+
+<div class="code">
+
+rule_files:
+
+
+ - alerts.yml
+
+
+</div>
+
+
+
+Example alert:
+
+
+
+<div class="terminal">
+
+
+CPU usage > 90%
+
+
+
+       |
+
+
+
+       v
+
+
+
+Create alert
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+10. Remote Write
+</h2>
+
+
+
+<p>
+
+Remote write sends Prometheus metrics somewhere else.
+
+Example: Mimir.
+
+</p>
+
+
+
+<div class="code">
+
+remote_write:
+
+
+- url:
+
+
+  http://mimir:9009/api/v1/push
+
+
+</div>
+
+
+
+<div class="terminal">
+
+
+Prometheus
+
+
+      |
+
+
+      | remote_write
+
+
+      v
+
+
+Mimir
+
+
+(long term storage)
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+11. Full Production Example
+</h2>
+
+
+
+<div class="code">
+
+global:
+
+
+ scrape_interval: 15s
+
+
+
+
+
+rule_files:
+
+
+ - alerts.yml
+
+
+
+
+
+scrape_configs:
+
+
+
+- job_name: ecommerce
+
+
+ static_configs:
+
+
+ - targets:
+
+
+   - app:5000
+
+
+   labels:
+
+
+    env: prod
+
+
+
+
+
+
+
+remote_write:
+
+
+- url:
+
+
+  http://mimir/api/v1/push
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+12. Summary
+</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Section</th>
+
+<th>Purpose</th>
+
+</tr>
+
+
+<tr>
+
+<td>global</td>
+
+<td>Default timing settings</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>scrape_configs</td>
+
+<td>What Prometheus monitors</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>targets</td>
+
+<td>Application endpoints</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>labels</td>
+
+<td>Add metadata</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>rule_files</td>
+
+<td>Alert definitions</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>remote_write</td>
+
+<td>Send metrics externally</td>
+
+</tr>
+
+
+</table>
+
+
+</div>
+
+
+
+
+
+
+</div>
+
+
+</body>
+</html>
