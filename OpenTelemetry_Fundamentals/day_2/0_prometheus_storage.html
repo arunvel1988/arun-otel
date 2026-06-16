@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Prometheus Storage Explained</title>
+
+<style>
+
+body{
+    margin:0;
+    background:#0b1020;
+    font-family:Arial, Helvetica, sans-serif;
+    color:#e5e7eb;
+}
+
+
+.header{
+
+    background:#111827;
+    padding:40px;
+    text-align:center;
+    border-bottom:5px solid #e6522c;
+
+}
+
+
+.header h1{
+
+    font-size:42px;
+    margin:0;
+
+}
+
+
+.header p{
+
+    font-size:20px;
+    color:#cbd5e1;
+
+}
+
+
+
+.container{
+
+    width:90%;
+    margin:auto;
+
+}
+
+
+
+.card{
+
+    background:#111827;
+    margin:30px 0;
+    padding:30px;
+    border-radius:18px;
+    border:1px solid #374151;
+    box-shadow:0 0 25px rgba(230,82,44,0.15);
+
+}
+
+
+
+h2{
+
+    color:#ff7043;
+
+}
+
+
+
+p{
+
+    font-size:20px;
+    line-height:1.7;
+
+}
+
+
+
+.terminal{
+
+    background:#020617;
+    color:#22c55e;
+    padding:25px;
+    border-radius:15px;
+    white-space:pre;
+    font-family:monospace;
+    font-size:18px;
+    overflow:auto;
+
+}
+
+
+
+.code{
+
+    background:#000;
+    color:#38bdf8;
+    padding:20px;
+    border-radius:12px;
+    font-family:monospace;
+    font-size:18px;
+
+}
+
+
+
+table{
+
+    width:100%;
+    border-collapse:collapse;
+    font-size:18px;
+
+}
+
+
+
+td,th{
+
+    padding:15px;
+    border:1px solid #374151;
+
+}
+
+
+
+th{
+
+    background:#e6522c;
+
+}
+
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+<div class="header">
+
+<h1>
+Prometheus Storage Internals
+</h1>
+
+<p>
+How Prometheus stores millions of metrics efficiently
+</p>
+
+</div>
+
+
+
+<div class="container">
+
+
+
+
+
+
+
+<div class="card">
+
+<h2>
+1. What Does Prometheus Store?
+</h2>
+
+
+<p>
+
+Prometheus stores numeric values changing over time.
+
+Each value is called a sample.
+
+</p>
+
+
+
+<div class="terminal">
+
+Example:
+
+
+orders_total{service="checkout"}
+
+
+10:00  -> 100
+
+
+10:01  -> 150
+
+
+10:02  -> 250
+
+
+
+
+Prometheus stores:
+
+
+metric name
+
++
+
+labels
+
++
+
+timestamp
+
++
+
+value
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+2. Where is Data Stored?
+</h2>
+
+
+<p>
+
+Prometheus has its own database called TSDB.
+
+Time Series Database.
+
+</p>
+
+
+
+<div class="code">
+
+Default directory:
+
+
+/prometheus
+
+
+</div>
+
+
+
+<p>
+
+Inside Docker container:
+
+</p>
+
+
+
+<div class="code">
+
+docker exec -it prometheus sh
+
+
+cd /prometheus
+
+
+ls
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+3. Prometheus Storage Layout
+</h2>
+
+
+
+<div class="terminal">
+
+/prometheus
+
+
+
+├── wal
+
+
+│
+
+
+│   Write Ahead Log
+
+
+│   Recent incoming samples
+
+
+│
+
+
+
+├── chunks_head
+
+
+│
+
+
+│   Current active data
+
+
+│
+
+
+
+├── 01HFABCDE12345
+
+
+│
+
+
+│   Completed TSDB block
+
+
+│
+
+
+│   ├── chunks
+
+
+│   │
+
+
+│   │   compressed metric values
+
+
+│   │
+
+
+│   ├── index
+
+
+│   │
+
+
+│   │   label search database
+
+
+│   │
+
+
+│   └── meta.json
+
+
+│
+
+
+└── queries.active
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+4. Write Path
+</h2>
+
+
+
+<p>
+
+When a new metric arrives this happens.
+
+</p>
+
+
+
+<div class="terminal">
+
+Application Metric
+
+
+orders_total 100
+
+
+
+          |
+
+
+
+          v
+
+
+
+Prometheus Memory
+
+
+(Head Block)
+
+
+
+          |
+
+
+
+          v
+
+
+
+WAL File
+
+
+(crash protection)
+
+
+
+          |
+
+
+
+          v
+
+
+
+Compressed Block
+
+
+(permanent storage)
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+5. What is WAL?
+</h2>
+
+
+
+<p>
+
+WAL means Write Ahead Log.
+
+It protects Prometheus from losing recent data.
+
+</p>
+
+
+
+<div class="terminal">
+
+
+New sample arrives
+
+
+
+        |
+
+
+
+        v
+
+
+
+Write immediately to WAL
+
+
+
+        |
+
+
+
+        v
+
+
+
+Store in memory
+
+
+
+
+If Prometheus crashes:
+
+
+Restart
+
+
+   |
+
+
+Read WAL
+
+
+   |
+
+
+Recover data
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+6. What are Chunks?
+</h2>
+
+
+
+<p>
+
+Chunks contain the real metric values.
+
+They are compressed to save disk space.
+
+</p>
+
+
+
+<div class="terminal">
+
+
+Before compression:
+
+
+
+10:00 = 100
+
+
+10:01 = 105
+
+
+10:02 = 110
+
+
+
+After compression:
+
+
+
+small binary chunk file
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+7. What is Index?
+</h2>
+
+
+
+<p>
+
+Index helps Prometheus quickly find metrics.
+
+</p>
+
+
+
+<div class="terminal">
+
+
+Query:
+
+
+orders_total{service="payment"}
+
+
+
+Prometheus checks:
+
+
+index
+
+
+     |
+
+
+     finds matching series
+
+
+     |
+
+
+     reads chunks
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+8. Query Flow
+</h2>
+
+
+
+<div class="terminal">
+
+
+Grafana Query
+
+
+
+        |
+
+
+
+        v
+
+
+
+PromQL Engine
+
+
+
+        |
+
+
+        +------ Memory Head
+
+
+
+        |
+
+
+        +------ TSDB Blocks
+
+
+
+                 |
+
+
+
+                 v
+
+
+
+              Result
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+9. Docker Persistence
+</h2>
+
+
+<p>
+
+Without volume, deleting the container deletes metrics.
+
+</p>
+
+
+
+<div class="code">
+
+docker compose down -v
+
+
+Data removed
+
+
+</div>
+
+
+
+
+<p>
+
+Production style:
+
+</p>
+
+
+
+<div class="code">
+
+prometheus:
+
+
+ volumes:
+
+
+  - prometheus-data:/prometheus
+
+
+
+
+volumes:
+
+
+ prometheus-data:
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="card">
+
+
+<h2>
+10. Why Mimir Uses Different Storage
+</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Prometheus</th>
+
+<th>Mimir</th>
+
+</tr>
+
+
+<tr>
+
+<td>
+
+Local TSDB files
+
+</td>
+
+
+<td>
+
+Object storage
+
+</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Single machine
+
+</td>
+
+
+<td>
+
+Distributed
+
+</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>
+
+Limited by disk size
+
+</td>
+
+
+<td>
+
+Can store huge history
+
+</td>
+
+</tr>
+
+
+</table>
+
+
+</div>
+
+
+
+
+
+
+
+</div>
+
+
+</body>
+</html>
