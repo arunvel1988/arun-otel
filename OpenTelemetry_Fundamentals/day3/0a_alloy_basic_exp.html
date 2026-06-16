@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Alloy Metrics Pipeline</title>
+
+<style>
+
+body {
+    font-family: Arial, sans-serif;
+    background:#f4f6f8;
+    padding:30px;
+}
+
+h1 {
+    text-align:center;
+}
+
+.pipeline {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+}
+
+.box {
+    width:420px;
+    background:white;
+    border-radius:12px;
+    padding:20px;
+    margin:12px;
+    text-align:center;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15);
+}
+
+.title {
+    font-size:22px;
+    font-weight:bold;
+    margin-bottom:10px;
+}
+
+.desc {
+    color:#555;
+    font-size:15px;
+}
+
+.arrow {
+    font-size:35px;
+}
+
+
+.receiver {
+    border-left:8px solid #2196f3;
+}
+
+.processor {
+    border-left:8px solid #ff9800;
+}
+
+.exporter {
+    border-left:8px solid #4caf50;
+}
+
+.storage {
+    border-left:8px solid #9c27b0;
+}
+
+
+.code {
+    background:#111;
+    color:#0f0;
+    padding:10px;
+    border-radius:6px;
+    margin-top:10px;
+    font-family:monospace;
+    font-size:13px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>Grafana Alloy Metrics Pipeline</h1>
+
+
+<div class="pipeline">
+
+
+
+<div class="box receiver">
+
+<div class="title">
+Flask Application
+</div>
+
+<div class="desc">
+
+Application generates metrics
+
+</div>
+
+<div class="code">
+cart_count<br>
+checkout_count
+</div>
+
+</div>
+
+
+
+
+<div class="arrow">
+↓
+</div>
+
+
+
+
+
+<div class="box receiver">
+
+<div class="title">
+OTLP Receiver
+</div>
+
+
+<div class="desc">
+
+Accepts telemetry from application
+
+</div>
+
+
+<div class="code">
+gRPC :4317<br>
+HTTP :4318
+</div>
+
+
+</div>
+
+
+
+
+
+<div class="arrow">
+↓
+</div>
+
+
+
+
+
+
+<div class="box processor">
+
+
+<div class="title">
+Memory Limiter Processor
+</div>
+
+
+<div class="desc">
+
+Protects Alloy from high memory usage
+
+</div>
+
+
+<div class="code">
+limit = 512MiB
+</div>
+
+
+</div>
+
+
+
+
+
+
+<div class="arrow">
+↓
+</div>
+
+
+
+
+
+
+
+<div class="box processor">
+
+
+<div class="title">
+Batch Processor
+</div>
+
+
+<div class="desc">
+
+Groups metrics before sending
+
+</div>
+
+
+<div class="code">
+batch size = 1000<br>
+timeout = 5s
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="arrow">
+↓
+</div>
+
+
+
+
+
+
+
+
+<div class="box exporter">
+
+
+<div class="title">
+Prometheus Exporter
+</div>
+
+
+<div class="desc">
+
+Converts OTEL metrics to Prometheus format
+
+</div>
+
+
+<div class="code">
+OTEL → Prometheus
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="arrow">
+↓
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box processor">
+
+
+<div class="title">
+Relabel Processing
+</div>
+
+
+<div class="desc">
+
+Adds labels and removes unwanted metrics
+
+</div>
+
+
+
+<div class="code">
+
+environment="dev"<br>
+service="flask-api"<br>
+drop python_*
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="arrow">
+↓
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box storage">
+
+
+<div class="title">
+Mimir Storage
+</div>
+
+
+<div class="desc">
+
+Long term Prometheus metrics storage
+
+</div>
+
+
+
+<div class="code">
+
+http://mimir:9009/api/v1/push<br>
+tenant = demo
+
+</div>
+
+
+</div>
+
+
+
+
+
+</div>
+
+
+</body>
+</html>
