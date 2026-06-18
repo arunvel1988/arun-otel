@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Mimir Cardinality Explained</title>
+
+<style>
+body {
+    background:#111827;
+    color:#e5e7eb;
+    font-family:Arial;
+    line-height:1.6;
+}
+.container {
+    width:90%;
+    margin:auto;
+}
+.card {
+    background:#1f2937;
+    padding:20px;
+    margin:20px;
+    border-radius:12px;
+}
+.good {
+    border-left:6px solid #22c55e;
+}
+.bad {
+    border-left:6px solid #ef4444;
+}
+.info {
+    border-left:6px solid #3b82f6;
+}
+pre {
+    background:#020617;
+    padding:15px;
+    border-radius:10px;
+    color:#a7f3d0;
+}
+h1,h2 {
+    color:#93c5fd;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Grafana Mimir Cardinality Explained Simply</h1>
+
+
+<div class="card info">
+
+<h2>First: What does Mimir store?</h2>
+
+<p>
+Mimir does not store just metric names.
+Mimir stores <b>time series</b>.
+</p>
+
+<p>
+A time series means:
+</p>
+
+<pre>
+Metric Name
++
+Labels
++
+Label Values
+</pre>
+
+
+Example metric:
+
+<pre>
+http_requests_total
+</pre>
+
+
+With labels:
+
+<pre>
+http_requests_total{
+ service="cart",
+ method="GET",
+ status="200"
+}
+</pre>
+
+
+This complete combination becomes ONE SERIES.
+
+</div>
+
+
+
+
+
+<div class="card info">
+
+<h2>Example: Low Cardinality</h2>
+
+
+Imagine shopping application:
+
+<pre>
+http_requests_total{
+ service="cart",
+ status="200"
+}
+
+http_requests_total{
+ service="payment",
+ status="500"
+}
+</pre>
+
+
+Only few combinations.
+
+Result:
+
+<pre>
+2 active series
+</pre>
+
+
+Mimir is happy.
+
+</div>
+
+
+
+
+
+
+
+<div class="card bad">
+
+<h2>Example: High Cardinality Problem</h2>
+
+
+Developer adds user_id label:
+
+<pre>
+login_total{
+ user_id="1001"
+}
+
+login_total{
+ user_id="1002"
+}
+
+login_total{
+ user_id="1003"
+}
+
+...
+
+login_total{
+ user_id="1000000"
+}
+</pre>
+
+
+Now what happens?
+
+<pre>
+1 metric
++
+1 million users
+
+=
+
+1 million time series
+</pre>
+
+
+Mimir has to keep track of all these series.
+
+
+</div>
+
+
+
+
+
+
+
+<div class="card bad">
+
+<h2>Why is High Cardinality Bad?</h2>
+
+
+Every active series needs:
+
+<ul>
+<li>Memory in Ingester</li>
+<li>Index information</li>
+<li>CPU for queries</li>
+<li>Storage in S3 blocks</li>
+</ul>
+
+
+Flow:
+
+<pre>
+
+                 1 Million Series
+
+
+remote_write
+      |
+      v
+
+Distributor
+      |
+      v
+
+Ingester Memory
+      |
+      v
+
+TSDB Blocks
+      |
+      v
+
+S3
+
+
+</pre>
+
+Too many series = expensive Mimir cluster.
+
+</div>
+
+
+
+
+
+
+<div class="card info">
+
+<h2>Where does Mimir see Cardinality?</h2>
+
+
+Mimir Distributor checks incoming metrics.
+
+
+<pre>
+
+Application
+
+    |
+    v
+
+Alloy
+
+    |
+    v
+
+
+Mimir Distributor
+        |
+        |
+        |  "How many series?"
+        |
+        v
+
+Allowed ---> Ingester
+
+
+Too Many ---> Reject
+
+
+</pre>
+
+</div>
+
+
+
+
+
+
+<div class="card info">
+
+<h2>Mimir Cardinality Limits</h2>
+
+
+Example configuration:
+
+
+<pre>
+limits:
+
+ max_global_series_per_user: 1000000
+
+</pre>
+
+
+Meaning:
+
+<pre>
+
+Tenant A
+
+maximum allowed active series:
+
+1 Million
+
+
+</pre>
+
+
+After crossing:
+
+<pre>
+
+Incoming new series
+
+        |
+        v
+
+Distributor
+
+
+        X
+
+
+Rejected
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="card bad">
+
+<h2>Important Point</h2>
+
+
+Mimir DOES NOT remove bad labels automatically.
+
+
+Example:
+
+<pre>
+payment_total{
+ user_id="12345"
+}
+</pre>
+
+
+Mimir will not change it into:
+
+<pre>
+payment_total{}
+</pre>
+
+
+Mimir only says:
+
+<pre>
+
+Accept
+
+or
+
+Reject
+
+
+</pre>
+
+</div>
+
+
+
+
+
+
+
+<div class="card good">
+
+<h2>Correct Production Solution</h2>
+
+
+Fix before Mimir using Alloy.
+
+
+Before:
+
+<pre>
+checkout_total{
+ user_id="789",
+ region="india"
+}
+</pre>
+
+
+Remove user_id:
+
+
+<pre>
+checkout_total{
+ region="india"
+}
+</pre>
+
+
+
+Flow:
+
+
+<pre>
+
+Application
+
+     |
+     v
+
+Alloy
+
+(drop labels)
+(drop metrics)
+
+     |
+     v
+
+Mimir
+
+(limit protection)
+
+     |
+     v
+
+S3
+
+
+</pre>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="card good">
+
+<h2>Alloy Example</h2>
+
+
+Remove dangerous label:
+
+
+<pre>
+prometheus.relabel "cleanup" {
+
+ rule {
+
+   action = "labeldrop"
+
+   regex = "user_id"
+
+ }
+
+ forward_to = [
+   prometheus.remote_write.mimir.receiver
+ ]
+}
+
+</pre>
+
+
+Now Mimir receives clean metrics.
+
+
+</div>
+
+
+
+
+
+
+
+<div class="card info">
+
+<h2>Final Understanding</h2>
+
+
+<table border="1" cellpadding="10">
+
+<tr>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+
+
+<tr>
+<td>Does Mimir know cardinality?</td>
+<td>YES</td>
+</tr>
+
+
+<tr>
+<td>Can Mimir count active series?</td>
+<td>YES</td>
+</tr>
+
+
+<tr>
+<td>Can Mimir stop too many series?</td>
+<td>YES</td>
+</tr>
+
+
+<tr>
+<td>Can Mimir remove bad labels?</td>
+<td>NO</td>
+</tr>
+
+
+<tr>
+<td>Where to fix cardinality?</td>
+<td>Application / Alloy</td>
+</tr>
+
+</table>
+
+
+</div>
+
+
+
+</div>
+
+</body>
+</html>
