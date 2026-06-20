@@ -1,51 +1,66 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Loki YAML Explained</title>
+
+<title>Loki Production YAML Deep Dive</title>
 
 <style>
 
-body {
-    background:#0f172a;
-    color:#e5e7eb;
-    font-family:Arial;
-    padding:30px;
-    line-height:1.6;
+body{
+ background:#020617;
+ color:#e5e7eb;
+ font-family:Arial;
+ padding:30px;
+ line-height:1.7;
 }
 
-h1 {
-    color:#38bdf8;
+h1{
+ color:#38bdf8;
 }
 
-h2 {
-    color:#7dd3fc;
+h2{
+ color:#7dd3fc;
 }
 
-.box {
-    background:#1e293b;
-    padding:20px;
-    margin:20px 0;
-    border-radius:12px;
+h3{
+ color:#93c5fd;
 }
 
-.code {
-    background:#020617;
-    color:#86efac;
-    padding:15px;
-    border-radius:10px;
-    white-space:pre-wrap;
+.box{
+ background:#111827;
+ padding:20px;
+ margin:25px 0;
+ border-radius:12px;
 }
 
-.flow {
-    background:#111827;
-    padding:15px;
-    border-left:5px solid #38bdf8;
+.code{
+ background:#000;
+ color:#86efac;
+ padding:15px;
+ border-radius:10px;
+ white-space:pre-wrap;
 }
 
-.warn {
-    background:#3b1d1d;
-    padding:15px;
-    border-radius:10px;
+.flow{
+ background:#1e293b;
+ padding:20px;
+ border-left:5px solid #38bdf8;
+}
+
+.warn{
+ background:#3b1d1d;
+ padding:15px;
+ border-radius:10px;
+}
+
+table{
+ width:100%;
+ border-collapse:collapse;
+}
+
+td,th{
+ border:1px solid #475569;
+ padding:10px;
 }
 
 </style>
@@ -56,59 +71,84 @@ h2 {
 <body>
 
 
-<h1>Grafana Loki Configuration Explained</h1>
+<h1>Grafana Loki YAML Deep Architecture Explanation</h1>
 
 
 <div class="box">
 
-<h2>First Understand Loki Job</h2>
+<h2>Single Binary vs Production Loki</h2>
+
+
+<p>
+Our Docker demo runs one Loki process.
+Inside that one process all components exist.
+</p>
+
 
 <div class="flow">
 
-Application creates logs
+Single Loki Container
+
+<br><br>
+
+Distributor
 
 <br>
 
-|
+Ingester
 
 <br>
 
-Alloy sends logs
+Querier
 
 <br>
 
-|
+Query Frontend
 
 <br>
 
-Loki receives logs
+Compactor
 
 <br>
 
-|
-
-<br>
-
-Ingester keeps temporary chunks
-
-<br>
-
-|
-
-<br>
-
-Compress
-
-<br>
-
-|
-
-<br>
-
-Store in MinIO(S3)
+Ruler
 
 
 </div>
+
+
+<p>
+In Kubernetes these become separate deployments.
+</p>
+
+
+<div class="flow">
+
+loki-distributor pods
+
+<br>
+
+loki-ingester StatefulSet
+
+<br>
+
+loki-querier pods
+
+<br>
+
+loki-query-frontend pods
+
+<br>
+
+loki-compactor pod
+
+<br>
+
+loki-ruler pods
+
+
+</div>
+
 
 </div>
 
@@ -122,54 +162,77 @@ Store in MinIO(S3)
 
 
 <div class="code">
-
-auth_enabled: false
-
+auth_enabled: true
 </div>
+
+
+<h3>What does it control?</h3>
 
 
 <p>
-Controls Loki multi-tenancy.
+It enables Loki multi tenancy.
 </p>
 
+
+<div class="flow">
+
+Request comes:
+
+<br><br>
+
+Alloy
+
+<br>
+
+Header:
+
+X-Scope-OrgID: bank-a
+
+<br><br>
+
+Loki stores:
+
+<br>
+
+tenant = bank-a
+
+</div>
+
+
+<h3>Single Node</h3>
 
 <p>
-false means:
+Tenant separation happens inside same process.
 </p>
 
 
-<div class="code">
-
-No tenant authentication.
-
-Everything goes into default tenant:
-
-fake
-
-</div>
+<h3>Kubernetes Production</h3>
 
 
-<p>
-In production:
-</p>
+<div class="flow">
 
+100 customers
 
-<div class="code">
+<br>
 
-Tenant A
-  |
-  logs
+same Loki cluster
 
+<br>
 
-Tenant B
-  |
-  logs
+different tenants
+
+<br><br>
+
+bank-a/chunks
+
+<br>
+
+bank-b/chunks
 
 </div>
 
 
 </div>
-
 
 
 
@@ -180,60 +243,66 @@ Tenant B
 <div class="box">
 
 
-<h2>server</h2>
+<h2>server.http_listen_port</h2>
 
 
 <div class="code">
 
 server:
 
-  http_listen_port: 3100
+ http_listen_port:3100
 
 </div>
 
 
 <p>
-
-Starts Loki HTTP server.
-
+Starts Loki HTTP API.
 </p>
 
 
-Example:
+<table>
 
-<div class="code">
+<tr>
+<th>Endpoint</th>
+<th>Purpose</th>
+</tr>
 
-Grafana
-   |
-   |
-http://loki:3100
-   |
-   |
-  Loki
+<tr>
+<td>/loki/api/v1/push</td>
+<td>Distributor receives writes</td>
+</tr>
+
+<tr>
+<td>/loki/api/v1/query</td>
+<td>Query path</td>
+</tr>
+
+</table>
+
+
+<h3>Kubernetes</h3>
+
+
+<div class="flow">
+
+Service
+
+<br>
+
+loki-gateway
+
+<br>
+
+|
+
+<br>
+
+Distributor pods :3100
 
 </div>
 
 
-<p>
-
-Port 3100 exposes:
-
-</p>
-
-
-<ul>
-
-<li>Push API</li>
-
-<li>Query API</li>
-
-<li>Health check</li>
-
-</ul>
-
-
 </div>
-
 
 
 
@@ -245,134 +314,7 @@ Port 3100 exposes:
 <div class="box">
 
 
-<h2>common.path_prefix</h2>
-
-
-<div class="code">
-
-common:
-
- path_prefix: /loki
-
-</div>
-
-
-<p>
-
-Local working directory for Loki.
-
-</p>
-
-
-Example:
-
-
-<div class="code">
-
-/loki
-
-  |
-  + cache
-
-  |
-  + temporary files
-
-</div>
-
-
-<p>
-
-Remember:
-
-Final logs are NOT stored here.
-
-They go to MinIO.
-
-</p>
-
-
-</div>
-
-
-
-
-
-
-
-
-
-
-<div class="box">
-
-
-<h2>Replication Factor</h2>
-
-
-<div class="code">
-
-replication_factor: 1
-
-</div>
-
-
-<p>
-
-How many Loki ingesters keep a copy.
-
-</p>
-
-
-
-Development:
-
-<div class="code">
-
-Log
-
- |
- v
-
-Ingester-1
-
-(one copy)
-
-</div>
-
-
-
-Production:
-
-<div class="code">
-
-Log
-
- |
- +---- Ingester-1
-
- |
- +---- Ingester-2
-
- |
- +---- Ingester-3
-
-</div>
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-
-<div class="box">
-
-<h2>Ring Configuration</h2>
+<h2>common.ring</h2>
 
 
 <div class="code">
@@ -387,180 +329,224 @@ ring:
 
 
 <p>
-
-Ring tells Loki:
-
-"Which ingester owns which logs?"
-
+The ring is one of the most important Loki concepts.
 </p>
 
 
-
-<div class="flow">
-
-Distributor receives log
-
-<br>
-
-asks Ring
-
-<br>
-
-Which ingester?
-
-<br>
-
-Send there
-
-</div>
-
-
-
 <p>
-
-Production uses:
-
+It answers:
 </p>
 
 
 <div class="code">
 
-Consul
-
-etcd
-
-memberlist
+Which ingester owns this log stream?
 
 </div>
-
-
-</div>
-
-
-
-
-
-
-
-
-
-
-<div class="box">
-
-<h2>schema_config</h2>
-
-
-
-<div class="code">
-
-schema: v13
-
-store: tsdb
-
-object_store: s3
-
-</div>
-
-
-<p>
-
-Defines HOW Loki stores logs.
-
-</p>
-
-
-
-<div class="flow">
-
-
-Labels
-
-    |
-
-    v
-
-TSDB Index
-
-
-
-<br><br>
-
-
-Actual Logs
-
-    |
-
-    v
-
-
-S3 / MinIO chunks
-
-
-</div>
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-<div class="box">
-
-
-<h2>Index Configuration</h2>
-
-
-<div class="code">
-
-index:
-
- prefix: index_
-
- period: 24h
-
-</div>
-
-
-
-<p>
-
-Index is Loki's map.
-
-</p>
 
 
 Example:
 
 
+<div class="flow">
+
+Log:
+
+service=payment
+
+
+<br><br>
+
+
+Distributor hashes labels
+
+
+<br>
+
+hash=786
+
+
+<br><br>
+
+Ring says:
+
+
+<br>
+
+send to ingester-2
+
+
+</div>
+
+
+
+<h3>Single Node</h3>
+
+
 <div class="code">
 
-service="payment"
+inmemory is OK
 
-          |
+</div>
 
-          |
 
-       chunk-123
+<h3>Kubernetes</h3>
+
+
+<div class="code">
+
+memberlist
+
+Consul
+
+etcd
 
 </div>
 
 
 <p>
-
-Without index Loki cannot find logs quickly.
-
+because all pods must share ring state.
 </p>
-
 
 
 </div>
 
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>replication_factor</h2>
+
+
+<div class="code">
+
+replication_factor:1
+
+</div>
+
+
+<p>
+How many ingesters receive the same log.
+</p>
+
+
+<h3>Demo</h3>
+
+
+<div class="flow">
+
+Distributor
+
+ |
+ v
+
+Ingester-1
+
+
+</div>
+
+
+<h3>Production</h3>
+
+
+<div class="flow">
+
+
+Distributor
+
+<br>
+
+|
+
+<br>
+
++---- Ingester-1
+
+<br>
+
++---- Ingester-2
+
+<br>
+
++---- Ingester-3
+
+
+</div>
+
+
+<p>
+If one ingester dies logs survive.
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>schema_config</h2>
+
+
+<div class="code">
+
+store: tsdb
+
+object_store:s3
+
+schema:v13
+
+</div>
+
+
+<p>
+This defines Loki storage engine.
+</p>
+
+
+
+<div class="flow">
+
+Incoming Logs
+
+
+<br><br>
+
+
+Labels
+
+|
+
+TSDB Index
+
+
+<br><br>
+
+
+Log Body
+
+|
+
+Compressed Chunk
+
+|
+
+MinIO
+
+</div>
+
+
+</div>
 
 
 
@@ -572,52 +558,79 @@ Without index Loki cannot find logs quickly.
 <div class="box">
 
 
-<h2>storage_config AWS</h2>
+<h2>storage_config.aws</h2>
 
 
 
 <div class="code">
 
-endpoint: minio:9000
+endpoint:minio:9000
 
-bucketnames: loki-data
+bucketnames:loki-data
 
 </div>
 
 
 
 <p>
-
-This tells Loki:
-
-Where should I store chunks?
-
+This is object storage configuration.
 </p>
 
 
 
-<div class="flow">
+<h3>Demo</h3>
 
+
+<div class="flow">
 
 Loki
 
- |
+|
 
- |
-
- MinIO
-
-
-bucket:
-
-loki-data
+MinIO container
 
 
 </div>
 
 
+
+<h3>Production Kubernetes</h3>
+
+
+
+<div class="flow">
+
+Loki pods
+
+
+|
+
+AWS S3
+
+
+or
+
+
+GCS
+
+
+or
+
+
+Azure Blob
+
+
 </div>
 
+
+
+<p>
+Ingesters upload chunks.
+Queriers download chunks.
+</p>
+
+
+</div>
 
 
 
@@ -629,23 +642,25 @@ loki-data
 
 <div class="box">
 
-<h2>Ingester</h2>
+
+<h2>Ingester Deep Dive</h2>
 
 
 
 <div class="code">
 
-chunk_idle_period: 30s
+chunk_idle_period:30s
 
-max_chunk_age: 1m
+max_chunk_age:1m
+
+chunk_retain_period:5s
 
 </div>
 
 
+
 <p>
-
-Ingester is Loki memory buffer.
-
+Ingester is Loki's temporary memory database.
 </p>
 
 
@@ -653,31 +668,65 @@ Ingester is Loki memory buffer.
 <div class="flow">
 
 
-New Log
+Log arrives
 
 
-|
-
-RAM Chunk
-
+<br>
 
 |
 
-wait
+<br>
 
+Open Chunk in RAM
+
+
+<br>
 
 |
+
+<br>
+
+More logs appended
+
+
+<br>
+
+|
+
+<br>
 
 Compress
 
 
+<br>
+
 |
 
-Upload MinIO
+<br>
+
+Upload S3
 
 
 </div>
 
+
+
+
+<h3>Why not directly S3?</h3>
+
+
+
+<div class="code">
+
+1 million logs
+
+=
+
+1 million S3 writes
+
+VERY EXPENSIVE
+
+</div>
 
 
 </div>
@@ -696,24 +745,11 @@ Upload MinIO
 <h2>chunk_idle_period</h2>
 
 
-
-<div class="code">
-
-chunk_idle_period: 30s
-
-</div>
-
-
-
 <p>
 
-Meaning:
-
-If no new logs arrive for 30 seconds,
-close this chunk.
+Close chunk if no activity.
 
 </p>
-
 
 
 Example:
@@ -721,26 +757,17 @@ Example:
 
 <div class="code">
 
-10:00:00 log
+10:00 log arrives
 
-10:00:05 log
+10:01 nothing
 
-(no activity)
-
-
-10:00:35
-
-
-Flush chunk
-
-</div>
-
+flush chunk
 
 </div>
 
 
 
-
+</div>
 
 
 
@@ -754,132 +781,30 @@ Flush chunk
 <h2>max_chunk_age</h2>
 
 
-<div class="code">
-
-max_chunk_age: 1m
-
-</div>
-
-
 <p>
 
-Maximum time a chunk can stay open.
+Even if logs continuously come,
+force close chunk.
 
 </p>
 
 
-
-Example:
-
-
 <div class="code">
 
-Logs continuously coming
+high traffic service
+
+never idle
 
 
-Still after 1 minute
+max age reached
 
 
-force close chunk
-
-
-send MinIO
-
-</div>
-
-
-</div>
-
-
-
-
-
-
-
-
-
-
-<div class="box">
-
-
-<h2>chunk_retain_period</h2>
-
-
-<div class="code">
-
-chunk_retain_period: 5s
-
-</div>
-
-
-<p>
-
-After uploading to MinIO,
-keep copy in RAM briefly.
-
-</p>
-
-
-Why?
-
-
-<div class="code">
-
-Recent query:
-
-RAM faster than S3
+flush
 
 </div>
 
 
 </div>
-
-
-
-
-
-
-
-
-
-<div class="box">
-
-
-<h2>limits_config</h2>
-
-
-
-<div class="code">
-
-reject_old_samples:false
-
-</div>
-
-
-<p>
-
-Accept older timestamp logs.
-
-Useful for demos.
-
-</p>
-
-
-Example:
-
-
-<div class="code">
-
-Yesterday log arrives today
-
-
-Accept it
-
-</div>
-
-
-</div>
-
 
 
 
@@ -895,7 +820,6 @@ Accept it
 <h2>Compactor</h2>
 
 
-
 <div class="code">
 
 compaction_interval:1m
@@ -903,41 +827,45 @@ compaction_interval:1m
 </div>
 
 
+
 <p>
-
-Compactor cleans and optimizes index.
-
+Compactor manages TSDB blocks.
 </p>
 
 
 
 <div class="flow">
 
+Many small index blocks
 
-Many small indexes
 
-        |
-
-        v
-
+|
 
 Compactor
 
 
-        |
+|
 
-        v
-
-
-Optimized index
-
+Large optimized blocks
 
 </div>
 
 
 
-</div>
+<h3>Kubernetes</h3>
 
+
+<p>
+Usually only ONE compactor runs.
+</p>
+
+
+<p>
+Multiple compactors can corrupt work.
+</p>
+
+
+</div>
 
 
 
@@ -952,6 +880,7 @@ Optimized index
 <h2>Querier</h2>
 
 
+
 <div class="code">
 
 max_concurrent:4
@@ -960,32 +889,40 @@ max_concurrent:4
 
 
 <p>
-
-How many queries Loki runs together.
-
+Controls parallel queries.
 </p>
 
 
 
-Example:
+<div class="flow">
+
+Grafana Query
 
 
-<div class="code">
+|
 
-4 users searching logs
-
-
-OK
+Query Frontend
 
 
-5th waits
+|
+
+Querier
+
+
+|
+
+Read Index
+
+
+|
+
+Fetch chunks from S3
+
 
 </div>
 
 
 </div>
-
-
 
 
 
@@ -996,14 +933,78 @@ OK
 
 <div class="box">
 
-<h2>Complete Data Journey</h2>
+<h2>Production Kubernetes Request Flow</h2>
+
+
+<div class="flow">
+
+
+WRITE PATH
+
+
+<br><br>
+
+
+Alloy
+
+<br>
+
+|
+
+<br>
+
+Gateway
+
+<br>
+
+|
+
+<br>
+
+Distributor
+
+<br>
+
+|
+
+<br>
+
+Ring Lookup
+
+<br>
+
+|
+
+<br>
+
+Ingester StatefulSet
+
+<br>
+
+|
+
+<br>
+
+S3 / MinIO
+
+
+</div>
+
+
+
+<br>
 
 
 
 <div class="flow">
 
 
-logger.error()
+READ PATH
+
+
+<br><br>
+
+Grafana
 
 
 <br>
@@ -1012,7 +1013,7 @@ logger.error()
 
 <br>
 
-Docker log file
+Query Frontend
 
 
 <br>
@@ -1021,7 +1022,7 @@ Docker log file
 
 <br>
 
-Alloy
+Querier
 
 
 <br>
@@ -1030,7 +1031,7 @@ Alloy
 
 <br>
 
-Loki Distributor
+TSDB Index
 
 
 <br>
@@ -1039,34 +1040,7 @@ Loki Distributor
 
 <br>
 
-Ingester RAM
-
-
-<br>
-
-|
-
-<br>
-
-Chunk compressed
-
-
-<br>
-
-|
-
-<br>
-
-MinIO
-
-
-<br>
-
-|
-
-<br>
-
-Grafana Query
+S3 Chunks
 
 
 </div>
@@ -1074,6 +1048,62 @@ Grafana Query
 
 </div>
 
+
+
+
+
+
+<div class="box warn">
+
+
+<h2>Failure Questions Students Ask</h2>
+
+
+<h3>Distributor dies?</h3>
+
+<p>
+No data loss. Alloy retries and another distributor receives.
+</p>
+
+
+
+<h3>Ingester dies?</h3>
+
+<p>
+Depends on replication factor.
+Production uses RF=3.
+</p>
+
+
+
+<h3>S3 dies?</h3>
+
+<p>
+Writes buffer temporarily.
+Queries for old data fail.
+</p>
+
+
+
+<h3>Querier dies?</h3>
+
+<p>
+Only searches affected.
+Logging continues.
+</p>
+
+
+
+<h3>Compactor dies?</h3>
+
+<p>
+Logs continue.
+Optimization stops.
+</p>
+
+
+
+</div>
 
 
 
