@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Loki Internal Flow Deep Dive</title>
+
+<style>
+
+body{
+ background:#020617;
+ color:#e5e7eb;
+ font-family:Arial;
+ padding:30px;
+ line-height:1.7;
+}
+
+h1{
+ color:#38bdf8;
+}
+
+h2{
+ color:#7dd3fc;
+}
+
+h3{
+ color:#93c5fd;
+}
+
+.box{
+ background:#111827;
+ padding:20px;
+ border-radius:12px;
+ margin:25px 0;
+}
+
+.flow{
+ background:#1e293b;
+ border-left:5px solid #38bdf8;
+ padding:20px;
+}
+
+.code{
+ background:#000;
+ color:#86efac;
+ padding:15px;
+ border-radius:10px;
+ white-space:pre-wrap;
+}
+
+.warn{
+ background:#3b1d1d;
+ padding:15px;
+ border-radius:10px;
+}
+
+table{
+ width:100%;
+ border-collapse:collapse;
+}
+
+td,th{
+ border:1px solid #475569;
+ padding:10px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>Grafana Loki Internal Architecture Deep Dive</h1>
+
+
+<div class="box">
+
+<h2>Single Container vs Production</h2>
+
+<p>
+In docker-compose Loki looks like one container.
+</p>
+
+
+<div class="code">
+docker ps
+
+loki
+</div>
+
+
+<p>
+But internally Loki runs multiple modules.
+</p>
+
+
+<div class="flow">
+
+Loki Process
+
+
+<br><br>
+
+Distributor
+
+<br>
+
+Ingester
+
+<br>
+
+Querier
+
+<br>
+
+Query Frontend
+
+<br>
+
+Compactor
+
+<br>
+
+Ruler
+
+</div>
+
+
+<p>
+In Kubernetes these become separate services.
+</p>
+
+
+<div class="flow">
+
+loki-distributor pods
+
+<br>
+
+loki-ingester StatefulSet
+
+<br>
+
+loki-query-frontend pods
+
+<br>
+
+loki-querier pods
+
+<br>
+
+loki-compactor
+
+<br>
+
+loki-ruler
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+<h1>PART 1 : WRITE PATH</h1>
+
+</div>
+
+
+
+
+
+<div class="box">
+
+<h2>Complete Log Write Journey</h2>
+
+
+<div class="flow">
+
+Application
+
+<br>
+
+|
+
+<br>
+
+Alloy
+
+<br>
+
+|
+
+<br>
+
+POST /loki/api/v1/push
+
+<br>
+
+|
+
+<br>
+
+Distributor
+
+<br>
+
+|
+
+<br>
+
+Ingester
+
+<br>
+
+|
+
+<br>
+
+Memory Chunk
+
+<br>
+
+|
+
+<br>
+
+Compressed Chunk
+
+<br>
+
+|
+
+<br>
+
+MinIO / S3
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>1. Distributor</h2>
+
+
+<p>
+Distributor is the first Loki component receiving logs.
+</p>
+
+
+Responsibilities:
+
+
+<ul>
+
+<li>Check tenant</li>
+
+<li>Validate labels</li>
+
+<li>Apply rate limits</li>
+
+<li>Select ingester</li>
+
+</ul>
+
+
+Example:
+
+
+<div class="code">
+
+Tenant:
+
+
+X-Scope-OrgID = bank-a
+
+
+
+Labels:
+
+
+service="payment"
+
+level="ERROR"
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>How Distributor Selects Ingester</h2>
+
+
+<div class="flow">
+
+Labels arrive
+
+
+<br>
+
+|
+
+<br>
+
+Create hash
+
+
+<br>
+
+|
+
+<br>
+
+Ask Loki Ring
+
+
+<br>
+
+|
+
+<br>
+
+Ring returns owner
+
+
+<br>
+
+|
+
+<br>
+
+Send to Ingester
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>2. Ingester</h2>
+
+
+<p>
+First place where logs are stored.
+</p>
+
+
+<div class="code">
+
+Storage location:
+
+
+Ingester RAM
+
+</div>
+
+
+Flow:
+
+
+<div class="flow">
+
+Receive log
+
+
+<br>
+
+|
+
+<br>
+
+Find Stream
+
+
+<br>
+
+|
+
+<br>
+
+Create/Open Chunk
+
+
+<br>
+
+|
+
+<br>
+
+Append log line
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Stream Concept</h2>
+
+
+<p>
+Same label combination creates one stream.
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+tenant=bank-a
+
+
+service=payment
+
+
+level=ERROR
+
+</div>
+
+
+Logs:
+
+
+<div class="flow">
+
+10:01 error
+
+
+<br>
+
+10:02 error
+
+
+<br>
+
+10:03 error
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Chunk Creation</h2>
+
+
+<p>
+Chunks are created by:
+</p>
+
+
+<div class="code">
+
+INGESTER
+
+</div>
+
+
+
+<div class="flow">
+
+Open chunk in RAM
+
+
+<br>
+
+|
+
+<br>
+
+Collect many logs
+
+
+<br>
+
+|
+
+<br>
+
+Close chunk
+
+
+<br>
+
+|
+
+<br>
+
+Compress
+
+
+<br>
+
+|
+
+<br>
+
+Generate chunk ID
+
+
+<br>
+
+|
+
+<br>
+
+Upload MinIO
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Why Not Directly Write S3?</h2>
+
+
+
+<div class="code">
+
+1 million logs
+
+
+=
+
+
+1 million S3 writes
+
+</div>
+
+
+<p>
+Too expensive.
+</p>
+
+
+Instead:
+
+
+<div class="flow">
+
+Many logs
+
+
+|
+
+One compressed chunk
+
+
+|
+
+One upload
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h1>PART 2 : QUERY PATH</h1>
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Grafana Query</h2>
+
+
+Example:
+
+
+<div class="code">
+
+{service="payment"}
+
+</div>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+Grafana
+
+
+<br>
+
+|
+
+<br>
+
+Query Frontend
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+Index Lookup
+
+
+<br>
+
+|
+
+<br>
+
+Find Chunk IDs
+
+
+<br>
+
+|
+
+<br>
+
+Download MinIO chunks
+
+
+<br>
+
+|
+
+<br>
+
+Decompress
+
+
+<br>
+
+|
+
+<br>
+
+Return Logs
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Query Frontend</h2>
+
+
+<p>
+Protects queriers.
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+User asks:
+
+
+Last 24 hours logs
+
+</div>
+
+
+It splits:
+
+
+<div class="flow">
+
+0-6 hours
+
+
+<br>
+
+6-12 hours
+
+
+<br>
+
+12-18 hours
+
+
+<br>
+
+18-24 hours
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Querier</h2>
+
+
+Responsibilities:
+
+
+<ul>
+
+<li>Read index</li>
+
+<li>Find matching chunks</li>
+
+<li>Download chunks</li>
+
+<li>Decompress</li>
+
+</ul>
+
+
+Important:
+
+
+<div class="warn">
+
+Querier does NOT scan full MinIO bucket
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h1>PART 3 : COMPACTOR</h1>
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Why Compactor Exists</h2>
+
+
+Before:
+
+
+<div class="code">
+
+index-1
+
+index-2
+
+index-3
+
+index-40000
+
+</div>
+
+
+Problem:
+
+
+<div class="code">
+
+Queries become slower
+
+</div>
+
+
+
+Compactor:
+
+
+<div class="flow">
+
+Small index blocks
+
+
+<br>
+
+|
+
+<br>
+
+Merge
+
+
+<br>
+
+|
+
+<br>
+
+Optimized index
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Retention Cleanup</h2>
+
+
+Example:
+
+
+<div class="code">
+
+Retention:
+
+
+30 days
+
+</div>
+
+
+Compactor:
+
+
+<div class="flow">
+
+Find expired chunks
+
+
+<br>
+
+|
+
+<br>
+
+Remove index references
+
+
+<br>
+
+|
+
+<br>
+
+Delete from MinIO
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h1>PART 4 : RULER</h1>
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+<h2>Ruler Job</h2>
+
+
+<p>
+Runs LogQL automatically.
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+count_over_time(
+{level="ERROR"}[5m]
+)
+
+</div>
+
+
+Flow:
+
+
+<div class="flow">
+
+Ruler
+
+
+<br>
+
+|
+
+<br>
+
+Execute query
+
+
+<br>
+
+|
+
+<br>
+
+Condition true
+
+
+<br>
+
+|
+
+<br>
+
+Alertmanager
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h1>PART 5 : FAILURE SCENARIOS</h1>
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+<h2>Distributor Down</h2>
+
+
+<div class="warn">
+
+New logs cannot enter.
+
+
+Alloy retries.
+
+
+Existing queries work.
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+<h2>Ingester Down</h2>
+
+
+<div class="warn">
+
+Most dangerous.
+
+
+Active RAM chunks are here.
+
+
+Use replication_factor=3.
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>MinIO Down</h2>
+
+
+<div class="warn">
+
+Flush fails.
+
+
+Old log queries fail.
+
+
+Ingester retries uploads.
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Querier Down</h2>
+
+
+<div class="warn">
+
+Logs continue.
+
+
+Only searching fails.
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Compactor Down</h2>
+
+
+<div class="warn">
+
+Logs continue.
+
+
+Queries continue.
+
+
+Storage grows.
+
+
+Retention stops.
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Final Memory Map</h2>
+
+
+<table>
+
+<tr>
+<th>Component</th>
+<th>Simple Meaning</th>
+</tr>
+
+
+<tr>
+<td>Distributor</td>
+<td>Traffic police</td>
+</tr>
+
+
+<tr>
+<td>Ingester</td>
+<td>RAM database + compressor</td>
+</tr>
+
+
+<tr>
+<td>MinIO/S3</td>
+<td>Permanent storage</td>
+</tr>
+
+
+<tr>
+<td>Querier</td>
+<td>Reader</td>
+</tr>
+
+
+<tr>
+<td>Query Frontend</td>
+<td>Query manager</td>
+</tr>
+
+
+<tr>
+<td>Compactor</td>
+<td>Cleaner + optimizer</td>
+</tr>
+
+
+<tr>
+<td>Ruler</td>
+<td>Automatic LogQL runner</td>
+</tr>
+
+
+</table>
+
+
+</div>
+
+
+
+
+</body>
+</html>
