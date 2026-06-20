@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Loki MinIO Storage Deep Dive</title>
+
+<style>
+
+body {
+ background:#020617;
+ color:#e5e7eb;
+ font-family:Arial;
+ padding:30px;
+ line-height:1.7;
+}
+
+h1 {
+ color:#38bdf8;
+}
+
+h2 {
+ color:#7dd3fc;
+}
+
+h3 {
+ color:#93c5fd;
+}
+
+.box {
+ background:#111827;
+ padding:20px;
+ border-radius:12px;
+ margin:25px 0;
+}
+
+.code {
+ background:black;
+ color:#86efac;
+ padding:15px;
+ border-radius:10px;
+ white-space:pre-wrap;
+}
+
+.flow {
+ background:#1e293b;
+ padding:20px;
+ border-left:5px solid #38bdf8;
+}
+
+.warn {
+ background:#3b1d1d;
+ padding:15px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+
+<h1>Loki + MinIO: How Logs Are Really Stored</h1>
+
+
+<div class="box">
+
+<h2>What You See In MinIO</h2>
+
+Example:
+
+<div class="code">
+
+loki-data
+
+ |
+ + bank-a
+
+      |
+      + 4f6e7a9c
+
+      + 82ab9210
+
+      + index_20345
+
+
+</div>
+
+
+<p>
+These random looking names are created by Loki.
+They are not created by MinIO.
+</p>
+
+
+</div>
+
+
+
+
+
+<div class="box">
+
+
+<h2>Who Creates These Random Folders?</h2>
+
+
+Answer:
+
+<div class="code">
+
+Loki Ingester
+
+</div>
+
+
+Flow:
+
+
+<div class="flow">
+
+
+Log arrives
+
+<br>
+
+|
+
+<br>
+
+Ingester creates chunk in memory
+
+<br>
+
+|
+
+<br>
+
+chunk becomes full / old
+
+<br>
+
+|
+
+<br>
+
+compress chunk
+
+<br>
+
+|
+
+<br>
+
+generate unique chunk ID
+
+<br>
+
+|
+
+<br>
+
+upload object to MinIO
+
+
+</div>
+
+
+
+Example chunk name:
+
+<div class="code">
+
+bank-a/1874af92c93e238
+
+</div>
+
+
+Meaning:
+
+<div class="code">
+
+bank-a = tenant
+
+
+1874af92 = unique chunk fingerprint
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>What Is Inside A Chunk?</h2>
+
+
+A chunk contains many log lines.
+
+
+Example original logs:
+
+
+<div class="code">
+
+10:00 payment success
+
+10:01 payment failed
+
+10:02 user checkout
+
+</div>
+
+
+
+Loki compresses:
+
+
+<div class="flow">
+
+1000 log lines
+
+      |
+
+compression
+
+      |
+
+one chunk file
+
+</div>
+
+
+
+The chunk contains:
+
+<ul>
+
+<li>timestamps</li>
+
+<li>actual log messages</li>
+
+<li>compressed data</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Where Are Labels Stored?</h2>
+
+
+Labels do not live inside the chunk search path.
+
+
+Example:
+
+<div class="code">
+
+service="payment"
+
+level="ERROR"
+
+</div>
+
+
+go into:
+
+
+<div class="code">
+
+TSDB Index
+
+</div>
+
+
+
+Index works like:
+
+
+<div class="flow">
+
+
+service=payment
+
+
+       |
+
+
+       v
+
+
+chunk id 87472
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>When Grafana Queries What Happens?</h2>
+
+
+Important:
+
+<div class="warn">
+
+Grafana NEVER talks directly to MinIO.
+
+</div>
+
+
+Actual flow:
+
+
+<div class="flow">
+
+
+Grafana
+
+<br>
+
+|
+
+<br>
+
+LogQL Query
+
+
+<br>
+
+|
+
+<br>
+
+Loki Query Frontend
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+Read Index
+
+
+<br>
+
+|
+
+<br>
+
+Find matching chunks
+
+
+<br>
+
+|
+
+<br>
+
+Download chunks from MinIO
+
+
+<br>
+
+|
+
+<br>
+
+Return logs
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Example Query Internals</h2>
+
+
+User runs:
+
+<div class="code">
+
+{service="payment"}
+
+</div>
+
+
+Loki does:
+
+
+<div class="code">
+
+Step 1:
+
+Search index
+
+
+Find:
+
+chunk-111
+
+chunk-222
+
+
+Step 2:
+
+Get from MinIO
+
+
+Step 3:
+
+Decompress
+
+
+Step 4:
+
+Return matching logs
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Does Loki Read Entire MinIO Bucket?</h2>
+
+
+No.
+
+
+Example:
+
+<div class="code">
+
+MinIO:
+
+10 TB logs
+
+
+Query:
+
+last 5 minutes ERROR
+
+</div>
+
+
+Loki reads:
+
+
+<div class="code">
+
+Only required chunks
+
+Maybe few MB
+
+</div>
+
+
+Because index tells location.
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Can I Decide What Goes To MinIO?</h2>
+
+
+YES.
+
+
+But usually NOT inside Loki.
+
+
+Production filtering happens BEFORE Loki.
+
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Filtering Location 1: Alloy (Best)</h2>
+
+
+Example:
+
+Do not store DEBUG logs.
+
+
+<div class="flow">
+
+
+Application
+
+|
+
+Alloy
+
+|
+
+(drop DEBUG)
+
+|
+
+Loki
+
+|
+
+MinIO
+
+
+</div>
+
+
+Example Alloy rule:
+
+
+<div class="code">
+
+stage.drop {
+
+ expression = ".*DEBUG.*"
+
+}
+
+</div>
+
+
+Result:
+
+
+<div class="code">
+
+DEBUG never reaches Loki
+
+DEBUG never reaches MinIO
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Filtering Location 2: Loki Limits</h2>
+
+
+Loki can reject based on rules:
+
+
+<div class="code">
+
+limits_config:
+
+ reject_old_samples:true
+
+
+ ingestion_rate_mb:10
+
+</div>
+
+
+Used for protection.
+
+
+Not normal filtering.
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Should All Logs Go To MinIO?</h2>
+
+
+Production answer:
+
+NO.
+
+
+Example:
+
+
+<div class="code">
+
+Keep:
+
+
+ERROR
+
+WARN
+
+Business events
+
+
+Reduce:
+
+
+DEBUG
+
+Health checks
+
+Noise logs
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Real Company Design</h2>
+
+
+
+<div class="flow">
+
+
+Application
+
+
+|
+
+|
+
+Alloy
+
+
+|
+
++ Remove useless logs
+
+
+|
+
++ Mask passwords
+
+
+|
+
++ Add labels
+
+
+|
+
+|
+
+Loki
+
+
+|
+
+|
+
+S3 / MinIO
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Production Kubernetes Mapping</h2>
+
+
+<div class="flow">
+
+
+WRITE PATH
+
+
+<br><br>
+
+
+Alloy Agent
+
+
+<br>
+
+|
+
+<br>
+
+Distributor Deployment
+
+
+<br>
+
+|
+
+<br>
+
+Ingester StatefulSet
+
+
+<br>
+
+|
+
+<br>
+
+Chunk Upload
+
+
+<br>
+
+|
+
+<br>
+
+S3
+
+
+<br><br>
+
+
+
+READ PATH
+
+
+<br><br>
+
+
+Grafana
+
+
+<br>
+
+|
+
+<br>
+
+Query Frontend
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+S3 Chunk Download
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+<div class="box">
+
+
+<h2>Final Interview Answer</h2>
+
+
+<div class="code">
+
+MinIO does not organize logs.
+
+Loki creates tenants,
+indexes,
+chunk IDs.
+
+
+Grafana never reads S3.
+
+
+Queries always go:
+
+Grafana -> Loki -> MinIO
+
+
+Filtering should happen in Alloy before storage.
+
+</div>
+
+
+</div>
+
+
+
+</body>
+
+</html>
