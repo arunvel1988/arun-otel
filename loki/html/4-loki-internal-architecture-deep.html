@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Loki Internal Architecture Deep Dive</title>
+
+<style>
+
+body{
+background:#020617;
+color:#e5e7eb;
+font-family:Arial;
+padding:30px;
+line-height:1.7;
+}
+
+h1{
+color:#38bdf8;
+}
+
+h2{
+color:#7dd3fc;
+}
+
+.box{
+background:#111827;
+padding:20px;
+border-radius:12px;
+margin:25px 0;
+}
+
+.code{
+background:#000;
+color:#86efac;
+padding:15px;
+border-radius:10px;
+white-space:pre-wrap;
+}
+
+.flow{
+background:#1e293b;
+border-left:5px solid #38bdf8;
+padding:20px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+
+<h1>Grafana Loki Internal Architecture</h1>
+
+
+<div class="box">
+
+<h2>First Important Point</h2>
+
+<p>
+In docker-compose demo we run ONE Loki container.
+But inside that one process multiple Loki services exist.
+</p>
+
+
+<div class="flow">
+
+loki container
+
+<br><br>
+
+contains:
+
+<br>
+
+Distributor
+
+<br>
+
+Ingester
+
+<br>
+
+Querier
+
+<br>
+
+Query Frontend
+
+<br>
+
+Compactor
+
+<br>
+
+Ruler
+
+</div>
+
+
+<p>
+In Kubernetes these become separate pods.
+</p>
+
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+<h2>Complete Write Flow</h2>
+
+
+<div class="flow">
+
+Application
+
+<br>
+|
+
+<br>
+Alloy
+
+<br>
+|
+
+<br>
+
+HTTP POST /loki/api/v1/push
+
+<br>
+|
+
+<br>
+
+Distributor
+
+<br>
+|
+
+<br>
+
+Ingester
+
+<br>
+|
+
+<br>
+
+Memory Chunk
+
+<br>
+|
+
+<br>
+
+Compressed Chunk
+
+<br>
+|
+
+<br>
+
+MinIO / S3
+
+
+</div>
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 1: Distributor Receives Log</h2>
+
+
+<p>
+First Loki component that receives logs:
+</p>
+
+
+<div class="code">
+
+DISTRIBUTOR
+
+</div>
+
+
+Example:
+
+
+<div class="code">
+
+{
+ tenant:"bank-a",
+
+ labels:{
+   service:"payment"
+ },
+
+ message:
+ "payment failed"
+}
+
+</div>
+
+
+Distributor checks:
+
+<ul>
+
+<li>Is tenant allowed?</li>
+
+<li>Is log format correct?</li>
+
+<li>Rate limits</li>
+
+<li>Which ingester should receive?</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>How Distributor Chooses Ingester?</h2>
+
+
+<p>
+Using the Loki Ring.
+</p>
+
+
+<div class="flow">
+
+Log labels:
+
+
+service=payment
+
+
+<br><br>
+
+
+Hash(labels)
+
+
+<br>
+
+
+result: 782392
+
+
+<br><br>
+
+Ring lookup
+
+
+<br><br>
+
+Owner:
+
+Ingester-2
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 2: Ingester Receives Log</h2>
+
+
+
+<p>
+Ingester is the temporary database.
+</p>
+
+
+<div class="code">
+
+VERY IMPORTANT:
+
+First storage location = Ingester RAM
+
+</div>
+
+
+Flow:
+
+
+<div class="flow">
+
+New log
+
+
+<br>
+
+|
+
+<br>
+
+Find stream
+
+
+<br>
+
+|
+
+<br>
+
+Open chunk in memory
+
+
+<br>
+
+|
+
+<br>
+
+Append log line
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>What Is A Stream?</h2>
+
+
+<p>
+Same labels create one stream.
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+service="payment"
+
+level="ERROR"
+
+tenant="bank-a"
+
+</div>
+
+
+
+All matching logs go into same stream.
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>What Is A Chunk?</h2>
+
+
+<p>
+Chunk is a block of compressed logs.
+</p>
+
+
+
+<div class="flow">
+
+
+RAM:
+
+
+<br><br>
+
+
+chunk-123
+
+
+<br>
+
+
+10:01 error
+
+<br>
+
+10:02 error
+
+<br>
+
+10:03 error
+
+
+</div>
+
+
+
+<p>
+
+Initially this chunk is NOT in MinIO.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Who Compresses The Chunk?</h2>
+
+
+Answer:
+
+
+<div class="code">
+
+Ingester
+
+</div>
+
+
+When:
+
+
+<ul>
+
+<li>chunk becomes full</li>
+
+<li>chunk_idle_period reached</li>
+
+<li>max_chunk_age reached</li>
+
+</ul>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+Open Chunk
+
+
+<br>
+
+|
+
+<br>
+
+Close Chunk
+
+
+<br>
+
+|
+
+<br>
+
+Compress
+
+
+<br>
+
+|
+
+<br>
+
+Generate chunk ID
+
+
+<br>
+
+|
+
+<br>
+
+Upload to Object Store
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Who Creates Random Folder Names?</h2>
+
+
+Answer:
+
+
+<div class="code">
+
+Ingester creates chunk IDs
+
+</div>
+
+
+
+Example:
+
+
+<div class="code">
+
+MinIO:
+
+
+bank-a/
+
+
+  74fa83293992/
+
+
+       chunk-file
+
+
+</div>
+
+
+<p>
+
+That ID is based on stream fingerprint and chunk metadata.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>What Happens After Upload?</h2>
+
+
+<p>
+
+MinIO becomes permanent storage.
+
+</p>
+
+
+<div class="flow">
+
+
+MinIO
+
+
+<br><br>
+
+
+tenant
+
+
+<br>
+
+
+stream fingerprint
+
+
+<br>
+
+
+compressed chunks
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Where Is Index Created?</h2>
+
+
+<p>
+
+Ingester also creates index information.
+
+</p>
+
+
+
+<div class="flow">
+
+
+Label:
+
+
+service=payment
+
+
+<br>
+
+|
+
+<br>
+
+points to
+
+
+<br>
+
+|
+
+<br>
+
+chunk ID
+
+
+</div>
+
+
+
+<p>
+
+Without index Loki cannot find chunks.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Read Flow: Grafana Query</h2>
+
+
+<div class="flow">
+
+
+Grafana
+
+
+<br>
+
+|
+
+<br>
+
+Query Frontend
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+Index lookup
+
+
+<br>
+
+|
+
+<br>
+
+Find chunk IDs
+
+
+<br>
+
+|
+
+<br>
+
+Download chunks from MinIO
+
+
+<br>
+
+|
+
+<br>
+
+Return logs
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Does Grafana Read MinIO?</h2>
+
+
+<div class="code">
+
+NO
+
+</div>
+
+
+Only Loki components talk to MinIO.
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Failure: Distributor Down</h2>
+
+
+<div class="flow">
+
+Alloy
+
+<br>
+
+|
+
+<br>
+
+Distributor X
+
+</div>
+
+
+Result:
+
+
+<div class="code">
+
+No ingestion
+
+
+Alloy retries
+
+
+No data loss usually
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Failure: Ingester Down</h2>
+
+
+
+<div class="flow">
+
+RAM chunks lost?
+
+</div>
+
+
+Depends:
+
+
+<div class="code">
+
+replication_factor=1
+
+risk
+
+
+replication_factor=3
+
+safe
+
+</div>
+
+
+Production:
+
+3 ingesters keep copies.
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Failure: MinIO Down</h2>
+
+
+<div class="flow">
+
+
+Distributor OK
+
+<br>
+
+Ingester OK
+
+<br>
+
+MinIO X
+
+
+</div>
+
+
+Result:
+
+
+<div class="code">
+
+new logs stay in ingester memory
+
+
+flush fails
+
+
+old queries fail
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Failure: Querier Down</h2>
+
+
+<div class="code">
+
+Logging continues
+
+Only searching fails
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Failure: Compactor Down</h2>
+
+
+<div class="code">
+
+Logs continue
+
+
+Queries work
+
+
+But indexes are not optimized
+
+
+Retention cleanup stops
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Production Kubernetes Layout</h2>
+
+
+<div class="flow">
+
+
+WRITE
+
+
+<br><br>
+
+
+Alloy DaemonSet
+
+
+<br>
+
+|
+
+<br>
+
+Distributor Deployment
+
+
+<br>
+
+|
+
+<br>
+
+Ingester StatefulSet
+
+
+<br>
+
+|
+
+<br>
+
+S3
+
+
+
+<br><br><br>
+
+
+READ
+
+
+<br><br>
+
+
+Grafana
+
+
+<br>
+
+|
+
+<br>
+
+Query Frontend
+
+
+<br>
+
+|
+
+<br>
+
+Querier Deployment
+
+
+<br>
+
+|
+
+<br>
+
+S3
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>One Line Memory</h2>
+
+
+<div class="code">
+
+Distributor decides WHERE
+
+
+Ingester stores and compresses
+
+
+Object Store keeps forever
+
+
+Querier reads back
+
+
+Compactor cleans
+
+
+</div>
+
+
+</div>
+
+
+
+</body>
+</html>
