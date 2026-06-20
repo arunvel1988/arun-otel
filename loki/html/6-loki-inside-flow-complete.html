@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Inside Grafana Loki - Complete Flow</title>
+
+<style>
+
+body{
+    background:#020617;
+    color:#e5e7eb;
+    font-family:Arial;
+    padding:30px;
+    line-height:1.7;
+}
+
+h1{
+    color:#38bdf8;
+}
+
+h2{
+    color:#7dd3fc;
+}
+
+h3{
+    color:#93c5fd;
+}
+
+.box{
+    background:#111827;
+    padding:20px;
+    margin:25px 0;
+    border-radius:12px;
+}
+
+.flow{
+    background:#1e293b;
+    border-left:5px solid #38bdf8;
+    padding:20px;
+}
+
+.code{
+    background:#000;
+    color:#86efac;
+    padding:15px;
+    border-radius:10px;
+    white-space:pre-wrap;
+}
+
+.warn{
+    background:#3b1d1d;
+    padding:15px;
+    border-radius:10px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+td,th{
+    border:1px solid #475569;
+    padding:10px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>Inside Grafana Loki - From Log Arrival To Query</h1>
+
+
+
+
+<div class="box">
+
+<h2>Single Binary Loki vs Production Loki</h2>
+
+
+<p>
+In our Docker Compose demo:
+</p>
+
+
+<div class="code">
+
+grafana/loki:latest
+
+one container
+
+</div>
+
+
+<p>
+But internally this one process runs many Loki modules.
+</p>
+
+
+<div class="flow">
+
+LOKI PROCESS
+
+<br><br>
+
+Distributor
+
+<br>
+
+Ingester
+
+<br>
+
+Querier
+
+<br>
+
+Query Frontend
+
+<br>
+
+Compactor
+
+<br>
+
+Ruler
+
+</div>
+
+
+
+<h3>Production Kubernetes</h3>
+
+
+<div class="flow">
+
+loki-distributor pods
+
+
+<br>
+
+loki-ingester StatefulSet
+
+
+<br>
+
+loki-query-frontend pods
+
+
+<br>
+
+loki-querier pods
+
+
+<br>
+
+loki-compactor pod
+
+
+<br>
+
+loki-ruler pods
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Complete Write Path</h2>
+
+
+
+<div class="flow">
+
+
+Python App
+
+
+<br>
+
+|
+
+<br>
+
+Docker Logs
+
+
+<br>
+
+|
+
+<br>
+
+Alloy
+
+
+<br>
+
+|
+
+<br>
+
+POST /loki/api/v1/push
+
+
+<br>
+
+|
+
+<br>
+
+Distributor
+
+
+<br>
+
+|
+
+<br>
+
+Ingester
+
+
+<br>
+
+|
+
+<br>
+
+RAM Chunk
+
+
+<br>
+
+|
+
+<br>
+
+Compressed Chunk
+
+
+<br>
+
+|
+
+<br>
+
+MinIO / S3
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>1. Distributor - First Entry Point</h2>
+
+
+
+<p>
+The first Loki component receiving logs.
+</p>
+
+
+
+<div class="code">
+
+Alloy sends:
+
+
+POST /loki/api/v1/push
+
+</div>
+
+
+
+Distributor checks:
+
+
+<ul>
+
+<li>Tenant ID</li>
+
+<li>Rate limits</li>
+
+<li>Labels validation</li>
+
+<li>Which ingester should receive logs</li>
+
+</ul>
+
+
+
+
+Example:
+
+
+<div class="code">
+
+Header:
+
+
+X-Scope-OrgID: bank-a
+
+
+Log:
+
+
+service="payment"
+
+level="ERROR"
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>How Distributor Finds Ingester?</h2>
+
+
+
+<div class="flow">
+
+
+Log stream labels
+
+
+<br>
+
+service=payment
+
+
+<br><br>
+
+
+Hash labels
+
+
+<br><br>
+
+
+Ask Ring
+
+
+<br><br>
+
+
+Ring answer:
+
+
+<br>
+
+
+Send to ingester-2
+
+
+</div>
+
+
+
+<h3>Ring Purpose</h3>
+
+
+<div class="code">
+
+Ring stores:
+
+
+Which ingester owns which data
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>2. Ingester - Temporary Database</h2>
+
+
+<p>
+The first place logs are stored:
+</p>
+
+
+<div class="code">
+
+INGESTER MEMORY
+
+</div>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+
+Receive log
+
+
+<br>
+
+|
+
+<br>
+
+Find stream
+
+
+<br>
+
+|
+
+<br>
+
+Open chunk
+
+
+<br>
+
+|
+
+<br>
+
+Append log line
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>What Is A Loki Stream?</h2>
+
+
+
+<p>
+
+Same label combination = one stream.
+
+</p>
+
+
+<div class="code">
+
+tenant="bank-a"
+
+
+service="payment"
+
+
+level="ERROR"
+
+</div>
+
+
+
+Example:
+
+
+<div class="flow">
+
+Stream
+
+
+<br><br>
+
+10:00 payment failed
+
+
+<br>
+
+10:01 payment failed
+
+
+<br>
+
+10:02 payment failed
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>What Is A Chunk?</h2>
+
+
+<p>
+
+Chunk is a group of logs stored together.
+
+</p>
+
+
+
+<div class="flow">
+
+RAM Chunk
+
+
+<br><br>
+
+
+log line
+
+
+<br>
+
+log line
+
+
+<br>
+
+log line
+
+
+<br><br>
+
+
+compressed later
+
+
+</div>
+
+
+
+Initially:
+
+
+<div class="warn">
+
+Not in MinIO yet
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Who Creates Compressed Chunk?</h2>
+
+
+Answer:
+
+
+<div class="code">
+
+Ingester
+
+</div>
+
+
+
+When?
+
+
+<div class="code">
+
+chunk_idle_period reached
+
+
+OR
+
+
+max_chunk_age reached
+
+
+OR
+
+
+chunk full
+
+</div>
+
+
+
+
+Flow:
+
+
+<div class="flow">
+
+Open Chunk
+
+
+<br>
+
+|
+
+<br>
+
+Close Chunk
+
+
+<br>
+
+|
+
+<br>
+
+Compress
+
+
+<br>
+
+|
+
+<br>
+
+Create chunk ID
+
+
+<br>
+
+|
+
+<br>
+
+Upload MinIO
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Why Random Folders In MinIO?</h2>
+
+
+
+Created by:
+
+
+<div class="code">
+
+Loki Ingester
+
+</div>
+
+
+Example:
+
+
+<div class="code">
+
+loki-data
+
+
+bank-a/
+
+
+   abc782382/
+
+
+       chunk-file
+
+
+</div>
+
+
+
+Meaning:
+
+
+<ul>
+
+<li>bank-a = tenant</li>
+
+<li>random id = stream fingerprint/chunk identity</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Index Creation</h2>
+
+
+<p>
+Loki does not search every log file.
+</p>
+
+
+
+Index:
+
+
+<div class="flow">
+
+Label:
+
+
+service=payment
+
+
+<br>
+
+|
+
+<br>
+
+points to
+
+
+<br>
+
+|
+
+<br>
+
+chunk IDs
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>READ PATH</h1>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Grafana Query Flow</h2>
+
+
+
+User runs:
+
+
+<div class="code">
+
+{service="payment"}
+
+</div>
+
+
+
+Internally:
+
+
+<div class="flow">
+
+
+Grafana
+
+
+<br>
+
+|
+
+<br>
+
+Query Frontend
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+Index lookup
+
+
+<br>
+
+|
+
+<br>
+
+Find chunks
+
+
+<br>
+
+|
+
+<br>
+
+Download from MinIO
+
+
+<br>
+
+|
+
+<br>
+
+Decompress
+
+
+<br>
+
+|
+
+<br>
+
+Return result
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Does Grafana Read MinIO?</h2>
+
+
+<div class="code">
+
+NO
+
+</div>
+
+
+Only Loki talks to object storage.
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>Ruler Component</h1>
+
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>What Does Ruler Do?</h2>
+
+
+
+<p>
+
+Ruler automatically executes LogQL.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+count_over_time(
+
+{level="ERROR"}[5m]
+
+)
+
+</div>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+
+Ruler
+
+
+<br>
+
+|
+
+<br>
+
+Runs LogQL every minute
+
+
+<br>
+
+|
+
+<br>
+
+Condition true?
+
+
+<br>
+
+|
+
+<br>
+
+Alertmanager
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>Failure Testing</h1>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Distributor Failure</h2>
+
+
+<div class="warn">
+
+
+Logs cannot enter Loki.
+
+
+Alloy retries.
+
+
+No query impact.
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Ingester Failure</h2>
+
+
+
+<div class="warn">
+
+
+Dangerous component.
+
+
+Active chunks live here.
+
+
+Use replication_factor=3
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>MinIO Failure</h2>
+
+
+
+<div class="warn">
+
+
+Ingestion may continue temporarily.
+
+
+Chunk upload fails.
+
+
+Old queries fail.
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Querier Failure</h2>
+
+
+
+<div class="code">
+
+Logs continue coming.
+
+
+Only searching affected.
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Compactor Failure</h2>
+
+
+
+<div class="code">
+
+Logs OK.
+
+
+Queries OK.
+
+
+Retention cleanup stops.
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Remember Loki Components</h2>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Component</th>
+
+<th>Job</th>
+
+</tr>
+
+
+<tr>
+
+<td>Distributor</td>
+
+<td>Validate and route logs</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Ingester</td>
+
+<td>Create chunks and upload storage</td>
+
+</tr>
+
+
+<tr>
+
+<td>Querier</td>
+
+<td>Read chunks and answer queries</td>
+
+</tr>
+
+
+<tr>
+
+<td>Query Frontend</td>
+
+<td>Split/cache queries</td>
+
+</tr>
+
+
+<tr>
+
+<td>Compactor</td>
+
+<td>Optimize and delete old data</td>
+
+</tr>
+
+
+<tr>
+
+<td>Ruler</td>
+
+<td>Run LogQL alerts</td>
+
+</tr>
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+</body>
+
+</html>
