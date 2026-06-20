@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Loki Component Communication Map</title>
+
+<style>
+
+body{
+    background:#020617;
+    color:#e5e7eb;
+    font-family:Arial;
+    padding:30px;
+    line-height:1.7;
+}
+
+h1{
+    color:#38bdf8;
+}
+
+h2{
+    color:#7dd3fc;
+}
+
+h3{
+    color:#93c5fd;
+}
+
+
+.box{
+    background:#111827;
+    padding:20px;
+    margin:25px 0;
+    border-radius:12px;
+}
+
+
+.flow{
+    background:#1e293b;
+    border-left:5px solid #38bdf8;
+    padding:20px;
+    font-size:18px;
+}
+
+
+.code{
+    background:black;
+    color:#86efac;
+    padding:15px;
+    border-radius:10px;
+    white-space:pre-wrap;
+}
+
+
+.warning{
+    background:#3b1d1d;
+    padding:15px;
+    border-radius:10px;
+}
+
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+td,th{
+    border:1px solid #475569;
+    padding:12px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+
+<h1>Grafana Loki - Which Component Talks To Which?</h1>
+
+
+
+
+<div class="box">
+
+<h2>The Biggest Loki Misunderstanding</h2>
+
+
+<p>
+Many people imagine Loki like this:
+</p>
+
+
+<div class="code">
+
+Distributor
+
+      |
+
+Ingester
+
+      |
+
+Querier
+
+      |
+
+Compactor
+
+      |
+
+Ruler
+
+</div>
+
+
+<div class="warning">
+
+This is WRONG.
+
+
+Loki components are not one single chain.
+
+</div>
+
+
+<p>
+Loki has independent flows.
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>1. WRITE PATH</h1>
+
+
+<p>
+Only used when new logs enter Loki.
+</p>
+
+
+<div class="flow">
+
+Application
+
+
+<br>
+
+|
+
+<br>
+
+Alloy
+
+
+<br>
+
+|
+
+<br>
+
+POST /loki/api/v1/push
+
+
+<br>
+
+|
+
+<br>
+
+
+Distributor
+
+
+<br>
+
+|
+
+<br>
+
+Ingester
+
+
+<br>
+
+|
+
+<br>
+
+MinIO / S3
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Distributor Communication</h2>
+
+
+<p>
+Distributor talks only to:
+</p>
+
+
+<div class="code">
+
+1. Ring
+
+
+2. Ingester
+
+</div>
+
+
+
+<h3>Step 1</h3>
+
+
+<div class="flow">
+
+Distributor
+
+
+<br>
+
+|
+
+<br>
+
+Ask Ring:
+
+
+<br><br>
+
+
+"Who owns service=payment?"
+
+</div>
+
+
+
+<h3>Step 2</h3>
+
+
+<div class="flow">
+
+Ring answer:
+
+
+<br><br>
+
+Ingester-2
+
+
+<br><br>
+
+
+Distributor sends logs to Ingester-2
+
+</div>
+
+
+
+<div class="warning">
+
+Distributor does NOT talk to:
+
+<br><br>
+
+MinIO
+
+<br>
+
+Querier
+
+<br>
+
+Compactor
+
+<br>
+
+Ruler
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Ingester Communication</h2>
+
+
+
+<p>
+Ingester talks to:
+</p>
+
+
+
+<div class="code">
+
+1. Ring
+
+
+2. MinIO/S3
+
+</div>
+
+
+
+<h3>Ring</h3>
+
+
+
+<div class="flow">
+
+Ingester:
+
+
+<br><br>
+
+
+"I am alive"
+
+
+<br>
+
+"I own these streams"
+
+
+</div>
+
+
+
+
+
+<h3>Object Storage</h3>
+
+
+
+<div class="flow">
+
+
+Receive logs
+
+
+<br>
+
+|
+
+<br>
+
+RAM chunk
+
+
+<br>
+
+|
+
+<br>
+
+Compress
+
+
+<br>
+
+|
+
+<br>
+
+Upload chunk to MinIO
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>2. READ PATH</h1>
+
+
+
+<p>
+Used when users search logs.
+</p>
+
+
+
+<div class="flow">
+
+
+Grafana
+
+
+<br>
+
+|
+
+<br>
+
+Query Frontend
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+
++----------------+
+
+<br>
+
+|
+
+
+<br>
+
+
+Ingester
+
+
+<br>
+
+
+(recent logs)
+
+
+<br><br>
+
+
+AND
+
+
+<br><br>
+
+
+MinIO
+
+
+<br>
+
+
+(old chunks)
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Why Querier Reads Ingester?</h2>
+
+
+
+Example:
+
+
+<div class="code">
+
+Current time:
+
+
+10:00:10
+
+
+
+Log created:
+
+
+10:00:05
+
+</div>
+
+
+
+<p>
+Only 5 seconds old.
+</p>
+
+
+
+<div class="warning">
+
+Not flushed to MinIO yet.
+
+Still inside Ingester RAM.
+
+</div>
+
+
+
+
+So:
+
+
+<div class="flow">
+
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+Ask Ingester
+
+
+<br>
+
+|
+
+<br>
+
+Get fresh logs
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Why Querier Reads MinIO?</h2>
+
+
+
+<p>
+Older logs are already flushed.
+</p>
+
+
+
+<div class="flow">
+
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+Read index
+
+
+<br>
+
+|
+
+<br>
+
+Find chunk ID
+
+
+<br>
+
+|
+
+<br>
+
+Download chunk
+
+
+<br>
+
+|
+
+<br>
+
+Decompress
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Query Frontend Communication</h2>
+
+
+
+<div class="flow">
+
+
+Grafana
+
+
+<br>
+
+|
+
+<br>
+
+Query Frontend
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+</div>
+
+
+
+
+<p>
+Responsibilities:
+</p>
+
+
+<ul>
+
+<li>Split large queries</li>
+
+<li>Queue queries</li>
+
+<li>Cache results</li>
+
+</ul>
+
+
+
+<div class="warning">
+
+Query Frontend does NOT talk directly to MinIO.
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>3. BACKGROUND COMPONENTS</h1>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Compactor Communication</h2>
+
+
+<p>
+Compactor is independent.
+</p>
+
+
+<div class="flow">
+
+
+Compactor
+
+
+<br>
+
+|
+
+<br>
+
+MinIO/S3
+
+
+</div>
+
+
+
+It performs:
+
+
+<ul>
+
+<li>Merge index blocks</li>
+
+<li>Optimize queries</li>
+
+<li>Apply retention</li>
+
+<li>Delete expired chunks</li>
+
+</ul>
+
+
+
+
+<div class="warning">
+
+Compactor does NOT talk to:
+
+<br><br>
+
+Distributor
+
+<br>
+
+Ingester
+
+<br>
+
+Querier
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Ruler Communication</h2>
+
+
+<p>
+Ruler behaves like automatic Grafana.
+</p>
+
+
+<div class="flow">
+
+
+Ruler
+
+
+<br>
+
+|
+
+<br>
+
+Run LogQL
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+Result
+
+
+<br>
+
+|
+
+<br>
+
+Alertmanager
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>Failure Impact</h1>
+
+
+<table>
+
+
+<tr>
+
+<th>Component Failed</th>
+
+<th>Impact</th>
+
+</tr>
+
+
+
+<tr>
+
+<td>Distributor</td>
+
+<td>New logs stop. Queries still work.</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Ingester</td>
+
+<td>Fresh logs affected. Need replication.</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Querier</td>
+
+<td>Search broken. Ingestion continues.</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Query Frontend</td>
+
+<td>Queries slower/unavailable.</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Compactor</td>
+
+<td>Logs work. Retention and cleanup stop.</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>Ruler</td>
+
+<td>Alerts stop. Logs continue.</td>
+
+</tr>
+
+
+
+<tr>
+
+<td>MinIO</td>
+
+<td>Storage and old queries affected.</td>
+
+</tr>
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>Final Loki Mental Model</h1>
+
+
+<div class="code">
+
+WRITE:
+
+
+Alloy
+
+ -> Distributor
+
+ -> Ingester
+
+ -> MinIO
+
+
+
+
+READ:
+
+
+Grafana
+
+ -> Query Frontend
+
+ -> Querier
+
+ -> Ingester + MinIO
+
+
+
+
+BACKGROUND:
+
+
+Compactor
+
+ -> MinIO
+
+
+
+Ruler
+
+ -> Querier
+
+ -> Alertmanager
+
+</div>
+
+
+</div>
+
+
+
+
+
+</body>
+</html>
