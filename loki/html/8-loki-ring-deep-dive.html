@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Loki Ring Deep Dive</title>
+
+<style>
+
+body{
+    background:#020617;
+    color:#e5e7eb;
+    font-family:Arial;
+    padding:30px;
+    line-height:1.7;
+}
+
+h1{
+    color:#38bdf8;
+}
+
+h2{
+    color:#7dd3fc;
+}
+
+h3{
+    color:#93c5fd;
+}
+
+.box{
+    background:#111827;
+    padding:20px;
+    margin:25px 0;
+    border-radius:12px;
+}
+
+.flow{
+    background:#1e293b;
+    padding:20px;
+    border-left:5px solid #38bdf8;
+}
+
+.code{
+    background:#000;
+    color:#86efac;
+    padding:15px;
+    border-radius:10px;
+    white-space:pre-wrap;
+}
+
+.warn{
+    background:#3b1d1d;
+    padding:15px;
+    border-radius:10px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+td,th{
+    border:1px solid #475569;
+    padding:10px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>Grafana Loki Ring - Deep Explanation</h1>
+
+
+<div class="box">
+
+<h2>The Problem Ring Solves</h2>
+
+
+<p>
+Imagine a production Loki cluster:
+</p>
+
+
+<div class="flow">
+
+Alloy
+
+
+<br>
+
+|
+
+<br>
+
+Distributor
+
+
+<br><br>
+
+
+Question:
+
+
+<br><br>
+
+
+"I received a log.
+Which ingester should store it?"
+
+
+<br><br>
+
+
+?
+
+
+<br><br>
+
+
+Ingester-1
+
+
+<br>
+
+Ingester-2
+
+
+<br>
+
+Ingester-3
+
+
+</div>
+
+
+
+<p>
+The answer comes from the Loki Ring.
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>What Is The Ring?</h2>
+
+
+
+<div class="code">
+
+Ring = Loki cluster membership table
+
+</div>
+
+
+<p>
+It stores:
+</p>
+
+
+
+<ul>
+
+<li>Which ingesters are alive</li>
+
+<li>Which ingester owns which token range</li>
+
+<li>Where logs should be routed</li>
+
+</ul>
+
+
+
+Example:
+
+
+<div class="code">
+
+RING TABLE
+
+
+Ingester-1
+
+Token Range:
+
+0 - 3000
+
+
+
+Ingester-2
+
+Token Range:
+
+3001 - 7000
+
+
+
+Ingester-3
+
+Token Range:
+
+7001 - 9999
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Who Creates The Ring?</h2>
+
+
+
+Answer:
+
+
+<div class="code">
+
+Ingesters create/update the Ring
+
+</div>
+
+
+
+When ingester starts:
+
+
+<div class="flow">
+
+
+Ingester booting
+
+
+<br>
+
+|
+
+<br>
+
+Register:
+
+
+<br><br>
+
+
+"I am alive"
+
+
+<br>
+
+"I own these tokens"
+
+
+<br>
+
+"I can receive logs"
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Where Is Ring Stored?</h2>
+
+
+
+<h3>Your Docker Demo</h3>
+
+
+<div class="code">
+
+ring:
+
+ kvstore:
+
+   store: inmemory
+
+</div>
+
+
+
+Meaning:
+
+
+<div class="flow">
+
+Ring lives inside Loki process memory
+
+
+<br><br>
+
+
+OK because only one Loki container
+
+</div>
+
+
+
+
+
+<h3>Production Kubernetes</h3>
+
+
+
+<div class="code">
+
+memberlist
+
+
+or
+
+
+Consul
+
+
+or
+
+
+etcd
+
+</div>
+
+
+
+
+Why?
+
+
+<div class="flow">
+
+
+Distributor pod
+
+
+<br>
+
+Ingester pod
+
+
+<br>
+
+Querier pod
+
+
+<br><br>
+
+
+Different machines
+
+
+<br><br>
+
+
+Need shared ring information
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Actual Log Routing Example</h2>
+
+
+Incoming log:
+
+
+<div class="code">
+
+tenant = bank-a
+
+
+service = payment
+
+
+level = ERROR
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 1 - Create Stream Key</h2>
+
+
+
+Labels combine:
+
+
+<div class="code">
+
+bank-a/payment/ERROR
+
+</div>
+
+
+This represents one Loki stream.
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 2 - Hash Calculation</h2>
+
+
+
+Loki calculates:
+
+
+<div class="code">
+
+hash(
+
+bank-a/payment/ERROR
+
+)
+
+
+= 4588
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 3 - Ring Lookup</h2>
+
+
+
+Ring:
+
+
+<div class="code">
+
+0-3000
+
+
+Ingester-1
+
+
+
+
+3001-7000
+
+
+Ingester-2
+
+
+
+
+7001-9999
+
+
+Ingester-3
+
+</div>
+
+
+
+Question:
+
+
+<div class="code">
+
+Who owns 4588?
+
+</div>
+
+
+
+Answer:
+
+
+<div class="code">
+
+Ingester-2
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 4 - Distributor Sends Logs</h2>
+
+
+
+<div class="flow">
+
+Distributor
+
+
+<br>
+
+|
+
+<br>
+
+gRPC
+
+
+<br>
+
+|
+
+<br>
+
+Ingester-2
+
+
+<br>
+
+|
+
+<br>
+
+Create chunk
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Does Distributor Modify Ring?</h2>
+
+
+<div class="warn">
+
+No
+
+</div>
+
+
+Correct model:
+
+
+<div class="flow">
+
+
+Ingester
+
+
+<br>
+
+|
+
+<br>
+
+writes registration
+
+
+<br>
+
+|
+
+<br>
+
+Ring
+
+
+
+<br><br>
+
+
+Distributor
+
+
+<br>
+
+|
+
+<br>
+
+reads ring
+
+
+<br>
+
+|
+
+<br>
+
+finds ingester
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Scaling Example</h2>
+
+
+
+Before:
+
+
+<div class="code">
+
+2 ingesters
+
+
+Ingester-1 : 50%
+
+
+Ingester-2 : 50%
+
+</div>
+
+
+
+
+Scale:
+
+
+<div class="code">
+
+kubectl scale ingester --replicas=3
+
+</div>
+
+
+
+After:
+
+
+<div class="code">
+
+Ingester-1 : 33%
+
+
+Ingester-2 : 33%
+
+
+Ingester-3 : 33%
+
+</div>
+
+
+
+New logs are redistributed.
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Ingester Failure</h2>
+
+
+Before:
+
+
+<div class="code">
+
+Ring:
+
+
+Ingester-2 ACTIVE
+
+</div>
+
+
+Crash happens:
+
+
+<div class="code">
+
+Heartbeat missing
+
+</div>
+
+
+
+Ring changes:
+
+
+<div class="code">
+
+Ingester-2 UNHEALTHY
+
+</div>
+
+
+
+Distributor:
+
+
+<div class="flow">
+
+Check ring
+
+
+<br>
+
+|
+
+<br>
+
+Choose healthy ingester
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Replication Factor</h2>
+
+
+
+Production:
+
+
+<div class="code">
+
+replication_factor: 3
+
+</div>
+
+
+
+Ring returns multiple owners:
+
+
+<div class="code">
+
+Hash 4588 belongs to:
+
+
+Ingester-2
+
+
+Ingester-4
+
+
+Ingester-7
+
+</div>
+
+
+
+Distributor writes:
+
+
+<div class="flow">
+
+
+Distributor
+
+
+<br>
+
+|
+
+<br>
+
++-----------+-----------+
+
+
+<br>
+
+|
+
+
+<br>
+
+
+Ingester-2
+
+
+<br>
+
+Ingester-4
+
+
+<br>
+
+Ingester-7
+
+</div>
+
+
+
+One failure:
+
+
+<div class="code">
+
+Logs still survive
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Your Docker Demo</h2>
+
+
+
+<div class="code">
+
+replication_factor:1
+
+
+store: inmemory
+
+</div>
+
+
+
+Effect:
+
+
+<div class="flow">
+
+
+Ring
+
+
+<br>
+
+|
+
+<br>
+
+Only one ingester
+
+
+<br>
+
+|
+
+<br>
+
+All logs go there
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Who Uses Ring?</h2>
+
+
+<table>
+
+<tr>
+
+<th>Component</th>
+
+<th>Use</th>
+
+</tr>
+
+
+<tr>
+
+<td>Ingester</td>
+
+<td>Registers itself and heartbeat</td>
+
+</tr>
+
+
+<tr>
+
+<td>Distributor</td>
+
+<td>Finds where to write logs</td>
+
+</tr>
+
+
+<tr>
+
+<td>Querier</td>
+
+<td>Finds ingesters containing recent logs</td>
+
+</tr>
+
+
+</table>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Final Memory Trick</h2>
+
+
+<div class="code">
+
+Ring is Loki's phone directory.
+
+
+
+Ingester says:
+
+"I am available"
+
+
+
+Distributor asks:
+
+"Where should this log go?"
+
+
+
+Querier asks:
+
+"Who may have fresh logs?"
+
+
+
+Ring stores ownership,
+
+
+not log data.
+
+</div>
+
+
+</div>
+
+
+
+</body>
+</html>
