@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Loki Admin Handbook</title>
+
+<style>
+
+body{
+background:#020617;
+color:#e5e7eb;
+font-family:Arial;
+padding:30px;
+line-height:1.7;
+}
+
+h1{
+color:#38bdf8;
+}
+
+h2{
+color:#7dd3fc;
+}
+
+h3{
+color:#93c5fd;
+}
+
+.box{
+background:#111827;
+padding:20px;
+border-radius:12px;
+margin:25px 0;
+}
+
+.code{
+background:black;
+color:#86efac;
+padding:15px;
+border-radius:10px;
+white-space:pre-wrap;
+}
+
+.flow{
+background:#1e293b;
+border-left:5px solid #38bdf8;
+padding:20px;
+}
+
+.warning{
+background:#3b1d1d;
+padding:15px;
+border-radius:10px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>Loki Administrator Deep Dive</h1>
+
+
+<div class="box">
+
+<h2>What Does A Loki Admin Own?</h2>
+
+
+<p>
+A developer thinks:
+</p>
+
+<div class="code">
+I want to see my application logs
+</div>
+
+
+<p>
+A Loki administrator thinks:
+</p>
+
+
+<div class="flow">
+
+Who can send logs?
+
+<br>
+
+How much can they send?
+
+<br>
+
+Where are logs stored?
+
+<br>
+
+How long are logs stored?
+
+<br>
+
+How expensive is storage?
+
+<br>
+
+Is Loki healthy?
+
+<br>
+
+Can we survive failures?
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+<h2>1. Tenant Administration</h2>
+
+
+<p>
+Loki is designed for multiple teams/customers.
+</p>
+
+
+Example:
+
+<div class="code">
+
+Company Loki
+
+
+Tenant:
+
+payments
+
+
+Tenant:
+
+orders
+
+
+Tenant:
+
+security
+
+
+</div>
+
+
+<h3>How Loki identifies tenant</h3>
+
+
+<div class="code">
+
+HTTP Header:
+
+
+X-Scope-OrgID: payments
+
+</div>
+
+
+Flow:
+
+
+<div class="flow">
+
+Alloy
+
+<br>
+
+adds tenant header
+
+<br>
+
+|
+
+<br>
+
+Distributor
+
+<br>
+
+checks tenant
+
+<br>
+
+|
+
+<br>
+
+Ingester
+
+<br>
+
+stores under tenant
+
+<br>
+
+|
+
+<br>
+
+S3
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>2. What Happens If Tenant Sends Too Many Logs?</h2>
+
+
+
+Example:
+
+
+<div class="code">
+
+Normal:
+
+10 GB/day
+
+
+Bug:
+
+DEBUG enabled
+
+
+2 TB/day
+
+</div>
+
+
+
+Problems:
+
+
+<ul>
+
+<li>High storage cost</li>
+
+<li>Ingester memory pressure</li>
+
+<li>Slow queries</li>
+
+<li>S3 cost increase</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>3. Ingestion Rate Control</h2>
+
+
+<p>
+Admin protects Loki using limits.
+</p>
+
+
+<div class="code">
+
+limits_config:
+
+
+ ingestion_rate_mb: 20
+
+
+ ingestion_burst_size_mb: 50
+
+</div>
+
+
+Meaning:
+
+
+<div class="flow">
+
+
+Tenant can continuously send:
+
+
+20 MB/sec
+
+
+<br><br>
+
+
+Temporary burst allowed:
+
+
+50 MB
+
+
+</div>
+
+
+
+<h3>If limit crossed?</h3>
+
+
+<div class="code">
+
+Distributor rejects writes
+
+
+HTTP 429
+
+
+Alloy retries
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>4. Per Tenant Limits</h2>
+
+
+
+<p>
+
+Production companies don't give everyone same capacity.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+runtime_config:
+
+
+payments:
+
+ ingestion_rate_mb:100
+
+
+
+development:
+
+ ingestion_rate_mb:5
+
+
+</div>
+
+
+
+Meaning:
+
+
+<div class="flow">
+
+
+Critical service
+
+gets more Loki capacity
+
+
+<br><br>
+
+
+Development apps
+
+are restricted
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>5. Label Governance</h2>
+
+
+
+<p>
+
+This is one of the biggest Loki admin jobs.
+
+</p>
+
+
+
+Good labels:
+
+
+<div class="code">
+
+service="payment"
+
+
+environment="prod"
+
+
+cluster="india"
+
+</div>
+
+
+
+Bad labels:
+
+
+<div class="code">
+
+userid="12345"
+
+
+requestid="abcd1234"
+
+
+transactionid="99999"
+
+</div>
+
+
+
+Why bad?
+
+
+<div class="flow">
+
+
+Each unique label combination
+
+
+creates
+
+
+a Loki Stream
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>6. Cardinality Explosion</h2>
+
+
+Example:
+
+
+<div class="code">
+
+100 services
+
+
+OK
+
+
+100 services
+
++
+
+1 million user ids
+
+
+DISASTER
+
+</div>
+
+
+
+What happens internally:
+
+
+<div class="flow">
+
+Millions of streams
+
+
+|
+
+Ingester memory increases
+
+
+|
+
+CPU increases
+
+
+|
+
+Queries slow
+
+
+|
+
+Loki unstable
+
+
+</div>
+
+
+
+Admin protection:
+
+
+<div class="code">
+
+limits_config:
+
+
+max_global_streams_per_user: 10000
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>7. Storage Management</h2>
+
+
+<p>
+Loki admin owns object storage.
+</p>
+
+
+
+Example:
+
+
+<div class="flow">
+
+
+Ingester
+
+
+|
+
+creates chunks
+
+
+|
+
+compresses
+
+
+|
+
+uploads
+
+
+|
+
+S3 / MinIO
+
+
+</div>
+
+
+
+Admin monitors:
+
+
+<ul>
+
+<li>Bucket growth</li>
+
+<li>Storage cost</li>
+
+<li>Failed uploads</li>
+
+<li>Retention cleanup</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>8. Retention Management</h2>
+
+
+
+Question:
+
+
+<div class="code">
+
+How long should logs live?
+
+</div>
+
+
+
+Examples:
+
+
+<div class="code">
+
+Security logs:
+
+
+180 days
+
+
+
+Debug logs:
+
+
+7 days
+
+
+
+Application logs:
+
+
+30 days
+
+</div>
+
+
+
+Config:
+
+
+<div class="code">
+
+limits_config:
+
+
+ retention_period:720h
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>9. Compactor Role</h2>
+
+
+
+<p>
+Compactor is the garbage collector.
+</p>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+
+Old TSDB blocks
+
+
+|
+
+Compactor
+
+
+|
+
+Merge indexes
+
+
+|
+
+Delete expired chunks
+
+
+</div>
+
+
+
+If compactor dies:
+
+
+<div class="warning">
+
+
+Logs continue.
+
+
+Queries continue.
+
+
+But cleanup stops.
+
+
+Storage grows forever.
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>10. Can Admin Decide What Goes To S3?</h2>
+
+
+Answer:
+
+
+<div class="code">
+
+Yes.
+
+But preferably BEFORE Loki.
+
+</div>
+
+
+
+Best place:
+
+
+<div class="flow">
+
+Application
+
+
+|
+
+Alloy
+
+
+|
+
+drop useless logs
+
+
+|
+
+Loki
+
+
+|
+
+S3
+
+</div>
+
+
+
+Example:
+
+
+<div class="code">
+
+Drop:
+
+
+DEBUG
+
+
+health checks
+
+
+temporary noise
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Production Rule</h2>
+
+
+<div class="code">
+
+Loki is not a trash bin.
+
+
+Do not store everything.
+
+
+Collect useful logs.
+
+
+Drop noise early.
+
+
+Control tenants.
+
+
+Control labels.
+
+
+Control retention.
+
+</div>
+
+
+</div>
+
+
+
+
+</body>
+</html>
