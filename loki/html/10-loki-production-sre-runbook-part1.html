@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Loki Production SRE Runbook - Part 1</title>
+
+<style>
+
+body{
+ background:#020617;
+ color:#e5e7eb;
+ font-family:Arial;
+ padding:30px;
+ line-height:1.7;
+}
+
+h1{
+ color:#38bdf8;
+}
+
+h2{
+ color:#7dd3fc;
+}
+
+h3{
+ color:#93c5fd;
+}
+
+.box{
+ background:#111827;
+ padding:20px;
+ margin:25px 0;
+ border-radius:12px;
+}
+
+.flow{
+ background:#1e293b;
+ padding:20px;
+ border-left:5px solid #38bdf8;
+}
+
+.code{
+ background:#000;
+ color:#86efac;
+ padding:15px;
+ border-radius:10px;
+ white-space:pre-wrap;
+}
+
+.bad{
+ background:#3b1d1d;
+ padding:15px;
+ border-radius:10px;
+}
+
+table{
+ width:100%;
+ border-collapse:collapse;
+}
+
+td,th{
+ border:1px solid #475569;
+ padding:10px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+
+<h1>Loki Production SRE Runbook</h1>
+
+<h2>Operating Loki At Huge Scale</h2>
+
+
+<div class="box">
+
+<h2>Production Example</h2>
+
+
+<div class="code">
+
+500 Kubernetes clusters
+
+
+50,000 applications
+
+
+20 TB logs every day
+
+
+90 days retention
+
+
+Petabytes of storage
+
+</div>
+
+
+<p>
+At this scale Loki administration is about:
+</p>
+
+
+<ul>
+
+<li>Scaling components</li>
+<li>Preventing failures</li>
+<li>Controlling cost</li>
+<li>Protecting tenants</li>
+<li>Fast troubleshooting</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Production Loki Architecture</h2>
+
+
+<div class="flow">
+
+
+WRITE PATH
+
+
+<br><br>
+
+
+Application Pods
+
+
+<br>
+
+|
+
+<br>
+
+Alloy DaemonSet
+
+
+<br>
+
+|
+
+<br>
+
+Gateway / Load Balancer
+
+
+<br>
+
+|
+
+<br>
+
+Distributor Deployment
+
+
+<br>
+
+|
+
+<br>
+
+Ring Lookup
+
+
+<br>
+
+|
+
+<br>
+
+Ingester StatefulSet
+
+
+<br>
+
+|
+
+<br>
+
+S3 Object Storage
+
+
+<br><br>
+
+
+========================
+
+
+<br><br>
+
+
+READ PATH
+
+
+<br><br>
+
+
+Grafana
+
+
+<br>
+
+|
+
+<br>
+
+Query Frontend
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+Index + Chunks
+
+
+<br>
+
+|
+
+<br>
+
+S3
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>SCENARIO 1</h1>
+
+<h2>Sudden Log Explosion</h2>
+
+
+Example:
+
+
+<div class="code">
+
+Normal:
+
+
+1 million lines/min
+
+
+Problem:
+
+
+50 million lines/min
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>What Happens Internally?</h2>
+
+
+<div class="flow">
+
+
+Huge traffic
+
+
+<br>
+
+|
+
+<br>
+
+Distributor receives
+
+
+<br>
+
+|
+
+<br>
+
+Checks limits
+
+
+<br>
+
+|
+
+<br>
+
+Too much?
+
+
+<br>
+
+|
+
+<br>
+
+Reject
+
+</div>
+
+
+
+Error:
+
+
+<div class="bad">
+
+HTTP 429
+
+
+Too Many Requests
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>How Admin Detects?</h2>
+
+
+Prometheus:
+
+
+<div class="code">
+
+rate(
+ loki_distributor_lines_received_total[5m]
+)
+
+</div>
+
+
+Rejected logs:
+
+
+<div class="code">
+
+loki_discarded_samples_total
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>How To Fix?</h2>
+
+
+Distributor is stateless.
+
+
+Scale it:
+
+
+<div class="code">
+
+kubectl scale deployment loki-distributor \
+--replicas=10
+
+</div>
+
+
+Before:
+
+
+<div class="flow">
+
+Distributor-1
+
+</div>
+
+
+After:
+
+
+<div class="flow">
+
+Distributor-1
+
+
+Distributor-2
+
+
+Distributor-3
+
+
+...
+
+
+Distributor-10
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>SCENARIO 2</h1>
+
+<h2>Ingester Memory Explosion</h2>
+
+
+Symptoms:
+
+
+<div class="bad">
+
+Pod OOMKilled
+
+
+High RAM
+
+
+Slow ingestion
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Why Does Ingester Memory Increase?</h2>
+
+
+Remember:
+
+
+<div class="code">
+
+Ingester stores ACTIVE chunks in RAM
+
+</div>
+
+
+
+Main reason:
+
+
+<h3>High Cardinality Labels</h3>
+
+
+Bad:
+
+
+<div class="code">
+
+user_id="983747"
+
+
+request_id="abc123"
+
+
+transaction_id="777"
+
+</div>
+
+
+Creates:
+
+
+<div class="flow">
+
+
+Millions of streams
+
+
+<br>
+
+|
+
+<br>
+
+Millions of chunks
+
+
+<br>
+
+|
+
+<br>
+
+Huge RAM
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>How To Detect?</h2>
+
+
+Metrics:
+
+
+<div class="code">
+
+loki_ingester_memory_streams
+
+
+process_resident_memory_bytes
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>How To Fix?</h2>
+
+
+<h3>1. Remove bad labels in Alloy</h3>
+
+
+<div class="code">
+
+Remove:
+
+
+request_id
+
+
+user_id
+
+
+session_id
+
+</div>
+
+
+
+<h3>2. Increase ingesters</h3>
+
+
+<div class="code">
+
+kubectl scale statefulset loki-ingester \
+--replicas=20
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>SCENARIO 3</h1>
+
+
+<h2>Ingester Crash</h2>
+
+
+Why dangerous?
+
+
+<div class="code">
+
+Fresh logs live in Ingester RAM
+
+</div>
+
+
+
+Example:
+
+
+<div class="flow">
+
+
+10:00 log arrives
+
+
+<br>
+
+|
+
+<br>
+
+RAM chunk
+
+
+<br>
+
+|
+
+<br>
+
+Not yet S3
+
+
+<br>
+
+|
+
+<br>
+
+Crash
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Production Protection 1: Replication</h2>
+
+
+Config:
+
+
+<div class="code">
+
+replication_factor: 3
+
+</div>
+
+
+Meaning:
+
+
+<div class="flow">
+
+
+Distributor
+
+
+<br>
+
+|
+
+<br>
+
++-----------+-----------+
+
+
+<br>
+
+|
+
+
+<br>
+
+Ingester-1
+
+
+<br>
+
+Ingester-2
+
+
+<br>
+
+Ingester-3
+
+</div>
+
+
+If one dies:
+
+
+<div class="code">
+
+Two copies remain
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Production Protection 2: WAL</h2>
+
+
+Write Ahead Log.
+
+
+<div class="flow">
+
+
+Incoming log
+
+
+<br>
+
+|
+
+<br>
+
+Write local disk WAL
+
+
+<br>
+
+|
+
+<br>
+
+RAM chunk
+
+</div>
+
+
+
+Crash recovery:
+
+
+<div class="flow">
+
+Restart
+
+
+<br>
+
+|
+
+<br>
+
+Replay WAL
+
+
+<br>
+
+|
+
+<br>
+
+Recover chunks
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>SCENARIO 4</h1>
+
+<h2>S3 / MinIO Failure</h2>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+
+Distributor OK
+
+
+<br>
+
+|
+
+<br>
+
+Ingester OK
+
+
+<br>
+
+|
+
+<br>
+
+S3 FAILED
+
+</div>
+
+
+
+Symptoms:
+
+
+<div class="bad">
+
+Chunk flush failures
+
+</div>
+
+
+
+Metric:
+
+
+<div class="code">
+
+loki_ingester_chunk_store_failures_total
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Fix</h2>
+
+
+<ul>
+
+<li>Recover object storage</li>
+
+<li>Check network</li>
+
+<li>Check credentials</li>
+<li>Ensure WAL has space</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Write Path Troubleshooting Checklist</h2>
+
+
+<table>
+
+<tr>
+<th>Problem</th>
+<th>Check</th>
+</tr>
+
+
+<tr>
+<td>No logs</td>
+<td>Alloy → Distributor → Ring → Ingester</td>
+</tr>
+
+
+<tr>
+<td>429 errors</td>
+<td>Tenant limits</td>
+</tr>
+
+
+<tr>
+<td>High RAM</td>
+<td>Ingester streams/cardinality</td>
+</tr>
+
+
+<tr>
+<td>Flush errors</td>
+<td>S3 connection</td>
+</tr>
+
+
+<tr>
+<td>Data loss risk</td>
+<td>Replication + WAL</td>
+</tr>
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+
+</body>
+</html>
