@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Loki Logging Architecture Flow</title>
+
+<style>
+
+body {
+
+    background:#0b1020;
+    color:white;
+    font-family:Arial;
+    padding:30px;
+}
+
+
+h1,h2 {
+
+    color:#7dd3fc;
+
+}
+
+
+.box {
+
+    background:#1e293b;
+    border-radius:12px;
+    padding:20px;
+    margin:20px;
+
+}
+
+
+.flow {
+
+    background:#020617;
+    padding:20px;
+    border-left:5px solid #38bdf8;
+    font-size:20px;
+    line-height:40px;
+
+}
+
+
+.code {
+
+    background:black;
+    padding:15px;
+    border-radius:10px;
+    color:#86efac;
+
+}
+
+
+.warning {
+
+    background:#3b1d1d;
+    padding:15px;
+    border-radius:10px;
+
+}
+
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>Grafana Loki Complete Logging Flow</h1>
+
+
+<div class="box">
+
+<h2>Big Picture</h2>
+
+
+<div class="flow">
+
+Python Application <br>
+&nbsp;&nbsp; | <br>
+&nbsp;&nbsp; | creates logs <br>
+&nbsp;&nbsp; v <br>
+
+Docker Container Logs <br>
+&nbsp;&nbsp; | <br>
+&nbsp;&nbsp; | collected by <br>
+&nbsp;&nbsp; v <br>
+
+Grafana Alloy <br>
+&nbsp;&nbsp; | <br>
+&nbsp;&nbsp; | pushes logs <br>
+&nbsp;&nbsp; v <br>
+
+Grafana Loki <br>
+&nbsp;&nbsp; | <br>
+&nbsp;&nbsp; | stores chunks <br>
+&nbsp;&nbsp; v <br>
+
+MinIO (S3 Storage)
+
+<br><br>
+
+Grafana queries Loki
+
+</div>
+
+</div>
+
+
+
+
+<div class="box">
+
+<h2>Step 1 - Application Creates Logs</h2>
+
+
+<p>
+Application does not know anything about Loki.
+It only writes logs.
+</p>
+
+
+<div class="code">
+
+logger.error("payment failed")
+
+</div>
+
+
+<p>
+Inside Docker this becomes:
+</p>
+
+
+<div class="code">
+
+/var/lib/docker/containers/container-id/container.log
+
+</div>
+
+
+</div>
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 2 - Alloy Collects Logs</h2>
+
+
+<p>
+
+Alloy is the log collector.
+
+Its responsibility:
+
+</p>
+
+
+<ul>
+
+<li>Find log files</li>
+
+<li>Read new lines</li>
+
+<li>Parse JSON</li>
+
+<li>Create labels</li>
+
+<li>Send to Loki</li>
+
+
+</ul>
+
+
+
+<div class="code">
+
+Docker File
+<br>
+|
+<br>
+v
+<br>
+loki.source.file
+<br>
+|
+<br>
+v
+<br>
+loki.process
+<br>
+|
+<br>
+v
+<br>
+loki.write
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 3 - Loki Receives Logs</h2>
+
+
+
+<p>
+
+Loki receives streams.
+
+Example:
+
+</p>
+
+
+
+<div class="code">
+
+service="payment-service"
+
+level="ERROR"
+
+</div>
+
+
+
+<p>
+
+Loki separates:
+
+</p>
+
+
+
+<div class="flow">
+
+
+Labels
+<br>
+|
+<br>
+Stored in Index
+
+
+<br><br>
+
+
+Actual Log Messages
+<br>
+|
+<br>
+Compressed into Chunks
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 4 - MinIO Stores Logs</h2>
+
+
+<p>
+
+MinIO acts like AWS S3.
+
+Loki uploads log chunks here.
+
+</p>
+
+
+
+<div class="code">
+
+
+MinIO Bucket:
+
+loki-data
+
+
+
+<br><br>
+
+
+Objects:
+
+
+chunks/
+
+
+index/
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 5 - Searching Logs</h2>
+
+
+<p>
+
+Grafana never talks directly to MinIO.
+
+</p>
+
+
+
+<div class="flow">
+
+
+User searches in Grafana
+
+<br>
+|
+
+<br>
+
+Loki receives query
+
+<br>
+
+|
+
+<br>
+
+Loki checks index
+
+<br>
+
+|
+
+<br>
+
+Downloads chunks from MinIO
+
+<br>
+
+|
+
+<br>
+
+Returns logs
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>LogQL Examples</h2>
+
+
+<div class="code">
+
+
+All payment logs:
+
+<br><br>
+
+{service="payment-service"}
+
+
+<br><br>
+
+
+Only errors:
+
+<br><br>
+
+
+{level="ERROR"}
+
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box warning">
+
+
+<h2>Failure Scenario 1: Application Down</h2>
+
+
+
+<div class="flow">
+
+
+Application X
+
+<br>
+
+|
+
+<br>
+
+No new logs generated
+
+
+<br><br>
+
+
+Old logs are still searchable from MinIO
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="box warning">
+
+
+<h2>Failure Scenario 2: Alloy Down</h2>
+
+
+
+<div class="flow">
+
+
+Application running
+
+<br>
+
+|
+
+<br>
+
+Docker logs created
+
+
+<br>
+
+|
+
+<br>
+
+Alloy X
+
+
+<br><br>
+
+
+Result:
+
+
+<br>
+
+
+Loki receives no new logs
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box warning">
+
+
+<h2>Failure Scenario 3: Loki Down</h2>
+
+
+
+<div class="flow">
+
+
+Application
+
+<br>
+
+|
+
+<br>
+
+Alloy
+
+<br>
+
+|
+
+<br>
+
+Loki X
+
+<br><br>
+
+
+Result:
+
+<br>
+
+MinIO gets nothing
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box warning">
+
+
+<h2>Failure Scenario 4: MinIO Down</h2>
+
+
+
+<div class="flow">
+
+
+Application OK
+
+<br>
+
+Alloy OK
+
+<br>
+
+Loki OK
+
+<br>
+
+MinIO X
+
+
+<br><br>
+
+Result:
+
+<br>
+
+Loki cannot flush chunks to storage
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Final Understanding</h2>
+
+
+<div class="flow">
+
+
+Application = Producer
+
+<br>
+
+Alloy = Collector + Processor
+
+<br>
+
+Loki = Index + Query Engine
+
+<br>
+
+MinIO = Long Term Storage
+
+<br>
+
+Grafana = Visualization
+
+
+</div>
+
+
+</div>
+
+
+
+
+</body>
+</html>
