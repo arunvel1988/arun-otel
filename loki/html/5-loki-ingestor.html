@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Loki Admin Handbook Part 2</title>
+
+<style>
+
+body{
+background:#020617;
+color:#e5e7eb;
+font-family:Arial;
+padding:30px;
+line-height:1.7;
+}
+
+h1{
+color:#38bdf8;
+}
+
+h2{
+color:#7dd3fc;
+}
+
+h3{
+color:#93c5fd;
+}
+
+.box{
+background:#111827;
+padding:20px;
+border-radius:12px;
+margin:25px 0;
+}
+
+.code{
+background:#000;
+color:#86efac;
+padding:15px;
+border-radius:10px;
+white-space:pre-wrap;
+}
+
+.flow{
+background:#1e293b;
+padding:20px;
+border-left:5px solid #38bdf8;
+}
+
+.warn{
+background:#3b1d1d;
+padding:15px;
+border-radius:10px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>Loki Admin Handbook Part 2</h1>
+
+<h2>Operating Loki In Production</h2>
+
+
+
+
+
+<div class="box">
+
+<h2>1. Single Binary vs Kubernetes Loki</h2>
+
+
+<p>
+Your docker-compose demo:
+</p>
+
+
+<div class="flow">
+
+ONE Loki process
+
+<br><br>
+
+Distributor
+
+<br>
+
+Ingester
+
+<br>
+
+Querier
+
+<br>
+
+Query Frontend
+
+<br>
+
+Compactor
+
+<br>
+
+Ruler
+
+
+</div>
+
+
+
+<p>
+Production Kubernetes:
+</p>
+
+
+<div class="flow">
+
+
+loki-distributor Deployment
+
+<br>
+
+loki-ingester StatefulSet
+
+<br>
+
+loki-query-frontend Deployment
+
+<br>
+
+loki-querier Deployment
+
+<br>
+
+loki-compactor Deployment
+
+<br>
+
+loki-ruler Deployment
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>2. Distributor Administration</h2>
+
+
+<h3>Responsibility</h3>
+
+
+<div class="code">
+
+First Loki component receiving logs
+
+</div>
+
+
+Tasks:
+
+
+<ul>
+
+<li>Authenticate tenant</li>
+
+<li>Validate labels</li>
+
+<li>Check rate limits</li>
+
+<li>Select ingester</li>
+
+</ul>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+
+Alloy
+
+<br>
+
+|
+
+<br>
+
+Distributor
+
+<br>
+
+|
+
+<br>
+
+Hash labels
+
+<br>
+
+|
+
+<br>
+
+Find ingester
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>3. Scaling Distributor</h2>
+
+
+<p>
+Problem:
+</p>
+
+
+<div class="code">
+
+Too many logs arriving
+
+</div>
+
+
+Solution:
+
+
+<div class="code">
+
+Increase distributor replicas
+
+</div>
+
+
+Example:
+
+
+<div class="flow">
+
+Before:
+
+
+Distributor-1
+
+
+<br><br>
+
+
+After:
+
+
+Distributor-1
+
+
+Distributor-2
+
+
+Distributor-3
+
+
+</div>
+
+
+
+<p>
+
+Distributor is stateless.
+
+Easy to scale.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>4. Ingester Administration</h2>
+
+
+
+<p>
+Most important Loki component.
+</p>
+
+
+Responsibilities:
+
+
+<ul>
+
+<li>Create streams</li>
+
+<li>Create chunks</li>
+
+<li>Hold chunks in RAM</li>
+
+<li>Compress chunks</li>
+
+<li>Upload to S3</li>
+
+</ul>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+
+Log
+
+
+<br>
+
+|
+
+<br>
+
+RAM chunk
+
+
+<br>
+
+|
+
+<br>
+
+Compress
+
+
+<br>
+
+|
+
+<br>
+
+S3
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>5. Why Ingester Is Stateful?</h2>
+
+
+
+Because:
+
+
+<div class="code">
+
+It owns active chunks in memory
+
+</div>
+
+
+
+Therefore Kubernetes uses:
+
+
+<div class="code">
+
+StatefulSet
+
+not
+
+Deployment
+
+</div>
+
+
+
+Example:
+
+
+<div class="flow">
+
+
+loki-ingester-0
+
+
+loki-ingester-1
+
+
+loki-ingester-2
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>6. Ingester Failure</h2>
+
+
+
+Scenario:
+
+
+<div class="code">
+
+ingester-1 crashes
+
+</div>
+
+
+
+If:
+
+
+<div class="code">
+
+replication_factor:1
+
+</div>
+
+
+
+Result:
+
+
+<div class="warn">
+
+Unflushed memory chunks may disappear
+
+</div>
+
+
+
+
+Production:
+
+
+<div class="code">
+
+replication_factor:3
+
+</div>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+Same log stored:
+
+
+Ingester-1
+
+
+Ingester-2
+
+
+Ingester-3
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>7. WAL - Write Ahead Log</h2>
+
+
+<p>
+Protection against ingester crash.
+</p>
+
+
+Flow:
+
+
+<div class="flow">
+
+
+Incoming Log
+
+
+<br>
+
+|
+
+<br>
+
+Write WAL on disk
+
+
+<br>
+
+|
+
+<br>
+
+Keep RAM chunk
+
+
+</div>
+
+
+
+If crash:
+
+
+<div class="flow">
+
+
+Restart
+
+
+|
+
+Read WAL
+
+
+|
+
+Recover chunks
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>8. Query Frontend</h2>
+
+
+
+<p>
+Protects queriers.
+</p>
+
+
+
+Without frontend:
+
+
+<div class="flow">
+
+
+Grafana
+
+
+|
+
+Querier overloaded
+
+
+</div>
+
+
+
+With frontend:
+
+
+<div class="flow">
+
+
+Grafana
+
+
+|
+
+Query Frontend
+
+
+|
+
+Split query
+
+
+|
+
+Queue
+
+
+|
+
+Querier
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>9. Querier Administration</h2>
+
+
+Responsibility:
+
+
+<ul>
+
+<li>Read index</li>
+
+<li>Find chunks</li>
+
+<li>Download from S3</li>
+
+<li>Decompress logs</li>
+
+</ul>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+Query:
+
+
+ERROR logs
+
+
+<br>
+
+|
+
+<br>
+
+Index lookup
+
+
+<br>
+
+|
+
+<br>
+
+Find chunks
+
+
+<br>
+
+|
+
+<br>
+
+Download S3
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>10. Query Cache</h2>
+
+
+Problem:
+
+
+<div class="code">
+
+Same dashboard refreshes every 10 seconds
+
+</div>
+
+
+
+Without cache:
+
+
+<div class="flow">
+
+Every query hits S3
+
+</div>
+
+
+
+With cache:
+
+
+<div class="flow">
+
+Grafana
+
+
+|
+
+Cache hit
+
+
+|
+
+Return result
+
+
+</div>
+
+
+Production uses:
+
+
+<div class="code">
+
+memcached
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>11. Ruler Component</h2>
+
+
+<p>
+Ruler runs LogQL automatically.
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+If ERROR count > 100
+
+send alert
+
+</div>
+
+
+
+Flow:
+
+
+<div class="flow">
+
+
+Ruler
+
+
+|
+
+Runs LogQL
+
+
+|
+
+Alertmanager
+
+
+|
+
+Notification
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>12. Compactor Operations</h2>
+
+
+Responsibilities:
+
+
+<ul>
+
+<li>Compact indexes</li>
+
+<li>Apply retention</li>
+
+<li>Delete old chunks</li>
+
+</ul>
+
+
+
+Failure:
+
+
+<div class="warn">
+
+Logs continue
+
+
+Queries continue
+
+
+Storage keeps growing
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>13. Loki Monitoring Metrics</h2>
+
+
+Admin watches:
+
+
+<div class="code">
+
+loki_distributor_lines_received_total
+
+
+loki_ingester_memory_streams
+
+
+loki_ingester_chunks_flushed_total
+
+
+loki_request_duration_seconds
+
+
+loki_cache_hits_total
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>14. Troubleshooting Examples</h2>
+
+
+
+<h3>No logs arriving</h3>
+
+
+Check:
+
+
+<div class="code">
+
+Alloy
+
+
+Distributor
+
+
+Tenant header
+
+
+Rate limits
+
+</div>
+
+
+
+
+
+<h3>High Memory</h3>
+
+
+Check:
+
+
+<div class="code">
+
+Ingester
+
+
+Number of streams
+
+
+Bad labels
+
+
+Cardinality
+
+</div>
+
+
+
+
+
+<h3>Slow Queries</h3>
+
+
+Check:
+
+
+<div class="code">
+
+Query frontend
+
+
+Querier replicas
+
+
+Cache
+
+
+S3 latency
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Loki Admin Mental Model</h2>
+
+
+<div class="code">
+
+Distributor
+=
+traffic controller
+
+
+
+Ingester
+=
+temporary database + compressor
+
+
+
+S3
+=
+permanent storage
+
+
+
+Querier
+=
+log reader
+
+
+
+Frontend
+=
+query manager
+
+
+
+Compactor
+=
+cleanup worker
+
+
+
+Ruler
+=
+alert engine
+
+</div>
+
+
+</div>
+
+
+
+
+</body>
+</html>
