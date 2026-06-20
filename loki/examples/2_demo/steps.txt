@@ -1,0 +1,371 @@
+kubectl create ns observability
+kubectl create ns apps
+
+helm repo add grafana https://grafana.github.io/helm-charts
+
+helm repo update
+
+helm search repo grafana/loki
+
+helm search repo grafana/mimir
+
+helm search repo grafana/alloy
+
+helm repo add minio https://charts.min.io/
+
+helm repo update
+
+helm install minio minio/minio \
+-n observability \
+--set rootUser=admin \
+--set rootPassword=password123 \
+--set buckets[0].name=loki-data \
+--set buckets[1].name=mimir-data
+
+
+
+kubectl get pods -n observability
+
+
+
+vi loki-values.yaml
+
+
+deploymentMode: SimpleScalable
+
+
+loki:
+
+  auth_enabled: true
+
+
+  commonConfig:
+
+    replication_factor: 1
+
+
+  schemaConfig:
+
+    configs:
+
+    - from: "2024-01-01"
+
+      store: tsdb
+
+      object_store: s3
+
+      schema: v13
+
+      index:
+
+        prefix: index_
+
+        period: 24h
+
+
+  storage:
+
+    type: s3
+
+
+    s3:
+
+      endpoint: minio.observability.svc.cluster.local:9000
+
+      bucketnames: loki-data
+
+      accessKeyId: admin
+
+      secretAccessKey: password123
+
+      insecure: true
+
+      s3ForcePathStyle: true
+
+
+
+write:
+
+ replicas: 1
+
+
+read:
+
+ replicas: 1
+
+
+backend:
+
+ replicas: 1
+
+
+###############################################################
+
+
+
+helm install loki grafana/loki \
+-n observability \
+-f loki-values.yaml
+
+###############################################################
+kubectl get pods -n observability
+
+vi mimir-values.yaml
+
+mimir:
+
+ structuredConfig:
+
+  common:
+
+   storage:
+
+    backend: s3
+
+
+    s3:
+
+     endpoint: minio.observability.svc.cluster.local:9000
+
+     bucket_name: mimir-data
+
+     access_key_id: admin
+
+     secret_access_key: password123
+
+     insecure: true
+
+
+ingester:
+
+ replicas: 1
+
+
+distributor:
+
+ replicas: 1
+
+
+querier:
+
+ replicas: 1
+
+
+query_frontend:
+
+ replicas: 1
+
+
+store_gateway:
+
+ replicas: 1
+
+
+compactor:
+
+ replicas: 1
+
+###############################################################
+
+helm install mimir grafana/mimir-distributed \
+-n observability \
+-f mimir-values.yaml
+
+
+
+vi alloy-values.yaml
+
+
+
+alloy:
+
+ configMap:
+
+  content: |
+
+
+    logging {
+      level = "info"
+    }
+
+
+
+    discovery.kubernetes "pods" {
+
+      role = "pod"
+
+    }
+
+
+
+
+    loki.source.kubernetes "pods" {
+
+
+      targets = discovery.kubernetes.pods.targets
+
+
+      forward_to = [
+        loki.write.default.receiver
+      ]
+
+    }
+
+
+
+
+    loki.write "default" {
+
+
+      endpoint {
+
+
+        url = "http://loki-gateway.observability.svc.cluster.local/loki/api/v1/push"
+
+
+        headers = {
+
+
+          "X-Scope-OrgID" = "training"
+
+
+        }
+
+
+      }
+
+
+    }
+
+
+
+helm install alloy grafana/alloy \
+-n observability \
+-f alloy-values.yaml
+
+
+#####################################################################
+
+nano app.py
+
+from flask import Flask
+import logging
+
+app = Flask(__name__)
+
+logging.basicConfig(level=logging.INFO)
+
+
+@app.route("/")
+def home():
+
+    logging.info("home page called")
+
+    return "hello loki"
+
+
+@app.route("/error")
+def error():
+
+    logging.error("payment failed")
+
+    return "error created"
+
+
+app.run(
+ host="0.0.0.0",
+ port=5000
+)
+#####################################################################
+
+nano Dockerfile
+
+FROM python:3.11
+
+WORKDIR /app
+
+COPY app.py .
+
+RUN pip install flask
+
+CMD python app.py
+
+#####################################################################
+
+nano dep.yml
+
+
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+ name: python-app
+ namespace: apps
+
+spec:
+
+ replicas: 3
+
+
+ selector:
+
+  matchLabels:
+
+   app: python-app
+
+
+ template:
+
+  metadata:
+
+   labels:
+
+    app: python-app
+
+
+  spec:
+
+   containers:
+
+   - name: app
+
+     image: yourimage/python-demo
+
+     ports:
+
+     - containerPort: 5000
+
+
+#####################################################################
+
+
+kubectl apply -f app.yaml
+
+kubectl logs -n apps deployment/python-app
+
+kubectl exec -n observability loki-write-0 -- \
+wget -qO- localhost:3100/metrics \
+| grep distributor
+
+kubectl exec -n observability loki-write-0 -- \
+wget -qO- localhost:3100/metrics \
+| grep ingester
+
+kubectl exec -n observability loki-backend-0 -- \
+wget -qO- localhost:3100/metrics \
+| grep compactor
+
+kubectl exec -n observability loki-backend-0 -- \
+wget -qO- localhost:3100/metrics \
+| grep ruler
+
+kubectl scale statefulset loki-write \
+-n observability \
+--replicas=0
+
+kubectl scale statefulset loki-write \
+-n observability \
+--replicas=1
+kubectl scale deployment loki-read \
+-n observability \
+--replicas=0
