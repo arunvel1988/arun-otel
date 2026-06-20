@@ -112,7 +112,7 @@ loki.write "default" {
     headers = {
 
 
-       "X-Scope-OrgID" = "bank-a"
+       "X-Scope-OrgID" = "bank-a",
 
 
     }
