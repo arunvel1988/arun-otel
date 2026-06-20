@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Loki YAML Explained</title>
+
+<style>
+
+body {
+    background:#0f172a;
+    color:#e5e7eb;
+    font-family:Arial;
+    padding:30px;
+    line-height:1.6;
+}
+
+h1 {
+    color:#38bdf8;
+}
+
+h2 {
+    color:#7dd3fc;
+}
+
+.box {
+    background:#1e293b;
+    padding:20px;
+    margin:20px 0;
+    border-radius:12px;
+}
+
+.code {
+    background:#020617;
+    color:#86efac;
+    padding:15px;
+    border-radius:10px;
+    white-space:pre-wrap;
+}
+
+.flow {
+    background:#111827;
+    padding:15px;
+    border-left:5px solid #38bdf8;
+}
+
+.warn {
+    background:#3b1d1d;
+    padding:15px;
+    border-radius:10px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>Grafana Loki Configuration Explained</h1>
+
+
+<div class="box">
+
+<h2>First Understand Loki Job</h2>
+
+<div class="flow">
+
+Application creates logs
+
+<br>
+
+|
+
+<br>
+
+Alloy sends logs
+
+<br>
+
+|
+
+<br>
+
+Loki receives logs
+
+<br>
+
+|
+
+<br>
+
+Ingester keeps temporary chunks
+
+<br>
+
+|
+
+<br>
+
+Compress
+
+<br>
+
+|
+
+<br>
+
+Store in MinIO(S3)
+
+
+</div>
+
+</div>
+
+
+
+
+
+<div class="box">
+
+<h2>auth_enabled</h2>
+
+
+<div class="code">
+
+auth_enabled: false
+
+</div>
+
+
+<p>
+Controls Loki multi-tenancy.
+</p>
+
+
+<p>
+false means:
+</p>
+
+
+<div class="code">
+
+No tenant authentication.
+
+Everything goes into default tenant:
+
+fake
+
+</div>
+
+
+<p>
+In production:
+</p>
+
+
+<div class="code">
+
+Tenant A
+  |
+  logs
+
+
+Tenant B
+  |
+  logs
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>server</h2>
+
+
+<div class="code">
+
+server:
+
+  http_listen_port: 3100
+
+</div>
+
+
+<p>
+
+Starts Loki HTTP server.
+
+</p>
+
+
+Example:
+
+<div class="code">
+
+Grafana
+   |
+   |
+http://loki:3100
+   |
+   |
+  Loki
+
+</div>
+
+
+<p>
+
+Port 3100 exposes:
+
+</p>
+
+
+<ul>
+
+<li>Push API</li>
+
+<li>Query API</li>
+
+<li>Health check</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>common.path_prefix</h2>
+
+
+<div class="code">
+
+common:
+
+ path_prefix: /loki
+
+</div>
+
+
+<p>
+
+Local working directory for Loki.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+/loki
+
+  |
+  + cache
+
+  |
+  + temporary files
+
+</div>
+
+
+<p>
+
+Remember:
+
+Final logs are NOT stored here.
+
+They go to MinIO.
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Replication Factor</h2>
+
+
+<div class="code">
+
+replication_factor: 1
+
+</div>
+
+
+<p>
+
+How many Loki ingesters keep a copy.
+
+</p>
+
+
+
+Development:
+
+<div class="code">
+
+Log
+
+ |
+ v
+
+Ingester-1
+
+(one copy)
+
+</div>
+
+
+
+Production:
+
+<div class="code">
+
+Log
+
+ |
+ +---- Ingester-1
+
+ |
+ +---- Ingester-2
+
+ |
+ +---- Ingester-3
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Ring Configuration</h2>
+
+
+<div class="code">
+
+ring:
+
+ kvstore:
+
+   store: inmemory
+
+</div>
+
+
+<p>
+
+Ring tells Loki:
+
+"Which ingester owns which logs?"
+
+</p>
+
+
+
+<div class="flow">
+
+Distributor receives log
+
+<br>
+
+asks Ring
+
+<br>
+
+Which ingester?
+
+<br>
+
+Send there
+
+</div>
+
+
+
+<p>
+
+Production uses:
+
+</p>
+
+
+<div class="code">
+
+Consul
+
+etcd
+
+memberlist
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>schema_config</h2>
+
+
+
+<div class="code">
+
+schema: v13
+
+store: tsdb
+
+object_store: s3
+
+</div>
+
+
+<p>
+
+Defines HOW Loki stores logs.
+
+</p>
+
+
+
+<div class="flow">
+
+
+Labels
+
+    |
+
+    v
+
+TSDB Index
+
+
+
+<br><br>
+
+
+Actual Logs
+
+    |
+
+    v
+
+
+S3 / MinIO chunks
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Index Configuration</h2>
+
+
+<div class="code">
+
+index:
+
+ prefix: index_
+
+ period: 24h
+
+</div>
+
+
+
+<p>
+
+Index is Loki's map.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+service="payment"
+
+          |
+
+          |
+
+       chunk-123
+
+</div>
+
+
+<p>
+
+Without index Loki cannot find logs quickly.
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>storage_config AWS</h2>
+
+
+
+<div class="code">
+
+endpoint: minio:9000
+
+bucketnames: loki-data
+
+</div>
+
+
+
+<p>
+
+This tells Loki:
+
+Where should I store chunks?
+
+</p>
+
+
+
+<div class="flow">
+
+
+Loki
+
+ |
+
+ |
+
+ MinIO
+
+
+bucket:
+
+loki-data
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Ingester</h2>
+
+
+
+<div class="code">
+
+chunk_idle_period: 30s
+
+max_chunk_age: 1m
+
+</div>
+
+
+<p>
+
+Ingester is Loki memory buffer.
+
+</p>
+
+
+
+<div class="flow">
+
+
+New Log
+
+
+|
+
+RAM Chunk
+
+
+|
+
+wait
+
+
+|
+
+Compress
+
+
+|
+
+Upload MinIO
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>chunk_idle_period</h2>
+
+
+
+<div class="code">
+
+chunk_idle_period: 30s
+
+</div>
+
+
+
+<p>
+
+Meaning:
+
+If no new logs arrive for 30 seconds,
+close this chunk.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+10:00:00 log
+
+10:00:05 log
+
+(no activity)
+
+
+10:00:35
+
+
+Flush chunk
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>max_chunk_age</h2>
+
+
+<div class="code">
+
+max_chunk_age: 1m
+
+</div>
+
+
+<p>
+
+Maximum time a chunk can stay open.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+Logs continuously coming
+
+
+Still after 1 minute
+
+
+force close chunk
+
+
+send MinIO
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>chunk_retain_period</h2>
+
+
+<div class="code">
+
+chunk_retain_period: 5s
+
+</div>
+
+
+<p>
+
+After uploading to MinIO,
+keep copy in RAM briefly.
+
+</p>
+
+
+Why?
+
+
+<div class="code">
+
+Recent query:
+
+RAM faster than S3
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>limits_config</h2>
+
+
+
+<div class="code">
+
+reject_old_samples:false
+
+</div>
+
+
+<p>
+
+Accept older timestamp logs.
+
+Useful for demos.
+
+</p>
+
+
+Example:
+
+
+<div class="code">
+
+Yesterday log arrives today
+
+
+Accept it
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Compactor</h2>
+
+
+
+<div class="code">
+
+compaction_interval:1m
+
+</div>
+
+
+<p>
+
+Compactor cleans and optimizes index.
+
+</p>
+
+
+
+<div class="flow">
+
+
+Many small indexes
+
+        |
+
+        v
+
+
+Compactor
+
+
+        |
+
+        v
+
+
+Optimized index
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Querier</h2>
+
+
+<div class="code">
+
+max_concurrent:4
+
+</div>
+
+
+<p>
+
+How many queries Loki runs together.
+
+</p>
+
+
+
+Example:
+
+
+<div class="code">
+
+4 users searching logs
+
+
+OK
+
+
+5th waits
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h2>Complete Data Journey</h2>
+
+
+
+<div class="flow">
+
+
+logger.error()
+
+
+<br>
+
+|
+
+<br>
+
+Docker log file
+
+
+<br>
+
+|
+
+<br>
+
+Alloy
+
+
+<br>
+
+|
+
+<br>
+
+Loki Distributor
+
+
+<br>
+
+|
+
+<br>
+
+Ingester RAM
+
+
+<br>
+
+|
+
+<br>
+
+Chunk compressed
+
+
+<br>
+
+|
+
+<br>
+
+MinIO
+
+
+<br>
+
+|
+
+<br>
+
+Grafana Query
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+</body>
+</html>
