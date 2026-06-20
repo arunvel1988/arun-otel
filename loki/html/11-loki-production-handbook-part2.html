@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Loki Production SRE Runbook Part 2</title>
+
+<style>
+
+body{
+ background:#020617;
+ color:#e5e7eb;
+ font-family:Arial;
+ padding:30px;
+ line-height:1.7;
+}
+
+h1{
+ color:#38bdf8;
+}
+
+h2{
+ color:#7dd3fc;
+}
+
+h3{
+ color:#93c5fd;
+}
+
+.box{
+ background:#111827;
+ padding:20px;
+ margin:25px 0;
+ border-radius:12px;
+}
+
+.flow{
+ background:#1e293b;
+ padding:20px;
+ border-left:5px solid #38bdf8;
+}
+
+.code{
+ background:#000;
+ color:#86efac;
+ padding:15px;
+ border-radius:10px;
+ white-space:pre-wrap;
+}
+
+.bad{
+ background:#3b1d1d;
+ padding:15px;
+ border-radius:10px;
+}
+
+table{
+ width:100%;
+ border-collapse:collapse;
+}
+
+td,th{
+ border:1px solid #475569;
+ padding:10px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>Loki Production SRE Runbook Part 2</h1>
+
+<h2>Read Path, Queries, Compactor, Ruler</h2>
+
+
+
+
+
+<div class="box">
+
+<h1>READ PATH RECAP</h1>
+
+
+<div class="flow">
+
+Grafana
+
+
+<br>
+
+|
+
+<br>
+
+Query Frontend
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+Index Lookup
+
+
+<br>
+
+|
+
+<br>
+
+Find Chunk IDs
+
+
+<br>
+
+|
+
+<br>
+
+Download S3 Chunks
+
+
+<br>
+
+|
+
+<br>
+
+Return Logs
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+<h1>SCENARIO 5</h1>
+
+<h2>Grafana Queries Are Very Slow</h2>
+
+
+User complaint:
+
+
+<div class="bad">
+
+Dashboard keeps loading
+
+
+Explore query timeout
+
+</div>
+
+
+First rule:
+
+
+<div class="code">
+
+Do not restart Loki randomly.
+
+Find the bottleneck.
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Step 1: Check Query Frontend</h2>
+
+
+
+Role:
+
+
+<ul>
+
+<li>Receives big queries</li>
+
+<li>Splits queries</li>
+
+<li>Queues work</li>
+
+<li>Uses cache</li>
+
+</ul>
+
+
+
+Example:
+
+
+<div class="code">
+
+User query:
+
+
+Last 24 hours ERROR logs
+
+</div>
+
+
+
+Query Frontend:
+
+
+<div class="flow">
+
+
+24 hour query
+
+
+<br>
+
+|
+
+<br>
+
+split
+
+
+<br>
+
+|
+
+<br>
+
+0-6 hours
+
+
+<br>
+
+6-12 hours
+
+
+<br>
+
+12-18 hours
+
+
+<br>
+
+18-24 hours
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Query Frontend Problem</h2>
+
+
+Symptom:
+
+
+<div class="bad">
+
+Large queue
+
+
+Many waiting queries
+
+</div>
+
+
+
+Metric:
+
+
+<div class="code">
+
+loki_query_frontend_queue_length
+
+</div>
+
+
+Fix:
+
+
+<div class="code">
+
+kubectl scale deployment loki-query-frontend \
+--replicas=5
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>SCENARIO 6</h1>
+
+<h2>Querier Overloaded</h2>
+
+
+
+Querier job:
+
+
+<div class="flow">
+
+Receive query
+
+
+<br>
+
+|
+
+<br>
+
+Read index
+
+
+<br>
+
+|
+
+<br>
+
+Find chunks
+
+
+<br>
+
+|
+
+<br>
+
+Download S3
+
+
+<br>
+
+|
+
+<br>
+
+Decompress
+
+</div>
+
+
+Symptoms:
+
+
+<ul>
+
+<li>High CPU</li>
+
+<li>Query timeout</li>
+
+<li>Slow Grafana</li>
+
+</ul>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>How To Fix Querier</h2>
+
+
+
+Scale:
+
+
+<div class="code">
+
+kubectl scale deployment loki-querier \
+--replicas=20
+
+</div>
+
+
+Why easy?
+
+
+<div class="code">
+
+Querier is stateless
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>SCENARIO 7</h1>
+
+<h2>Bad LogQL Query</h2>
+
+
+Example:
+
+
+<div class="bad">
+
+{namespace=~".*"}
+
+</div>
+
+
+Meaning:
+
+
+<div class="code">
+
+Search everything
+
+Download huge chunks
+
+Very expensive
+
+</div>
+
+
+Better:
+
+
+<div class="code">
+
+{
+ service="payment",
+ environment="prod"
+}
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>SCENARIO 8</h1>
+
+<h2>Cache Problems</h2>
+
+
+Without cache:
+
+
+<div class="flow">
+
+Grafana refresh
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+S3 every time
+
+</div>
+
+
+
+With cache:
+
+
+<div class="flow">
+
+Grafana
+
+
+<br>
+
+|
+
+<br>
+
+Cache HIT
+
+
+<br>
+
+|
+
+<br>
+
+Return immediately
+
+</div>
+
+
+Production:
+
+
+<div class="code">
+
+Memcached
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>SCENARIO 9</h1>
+
+<h2>Compactor Problems</h2>
+
+
+Remember:
+
+
+<div class="code">
+
+Compactor does not handle live logs.
+
+</div>
+
+
+Its job:
+
+
+<ul>
+
+<li>Merge index blocks</li>
+
+<li>Optimize storage</li>
+
+<li>Delete expired chunks</li>
+
+</ul>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>If Compactor Dies</h2>
+
+
+<div class="bad">
+
+Logs continue
+
+
+Queries continue
+
+
+BUT
+
+
+Retention stops
+
+
+Storage grows
+
+</div>
+
+
+
+Metric:
+
+
+<div class="code">
+
+loki_compactor_runs_completed_total
+
+</div>
+
+
+
+Fix:
+
+
+<div class="code">
+
+kubectl rollout restart deployment loki-compactor
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>SCENARIO 10</h1>
+
+<h2>Storage Cost Explosion</h2>
+
+
+Example:
+
+
+<div class="code">
+
+20 TB logs/day
+
+
+90 days
+
+
+=
+
+
+1800 TB storage
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>Admin Fixes</h2>
+
+
+1. Reduce retention:
+
+
+<div class="code">
+
+limits_config:
+
+
+ retention_period:720h
+
+</div>
+
+
+
+2. Drop logs before Loki:
+
+
+<div class="flow">
+
+Application
+
+
+<br>
+
+|
+
+<br>
+
+Alloy
+
+
+<br>
+
+|
+
+<br>
+
+Drop DEBUG
+
+
+<br>
+
+|
+
+<br>
+
+Loki
+
+</div>
+
+
+
+3. Fix labels:
+
+
+<div class="code">
+
+Remove:
+
+
+user_id
+
+
+request_id
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>SCENARIO 11</h1>
+
+<h2>Ruler Failure</h2>
+
+
+Ruler flow:
+
+
+<div class="flow">
+
+
+Ruler
+
+
+<br>
+
+|
+
+<br>
+
+Run LogQL
+
+
+<br>
+
+|
+
+<br>
+
+Querier
+
+
+<br>
+
+|
+
+<br>
+
+Alertmanager
+
+</div>
+
+
+Failure:
+
+
+<div class="bad">
+
+Logs continue
+
+
+Queries continue
+
+
+Only alerts stop
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>Production Scaling Guide</h1>
+
+
+<table>
+
+
+<tr>
+<th>Problem</th>
+<th>Scale / Fix</th>
+</tr>
+
+
+<tr>
+<td>Too many incoming logs</td>
+<td>Distributor</td>
+</tr>
+
+
+<tr>
+<td>High memory usage</td>
+<td>Ingester + fix labels</td>
+</tr>
+
+
+<tr>
+<td>Slow Grafana queries</td>
+<td>Querier</td>
+</tr>
+
+
+<tr>
+<td>Large query pressure</td>
+<td>Query Frontend</td>
+</tr>
+
+
+<tr>
+<td>Storage increasing</td>
+<td>Compactor + retention</td>
+</tr>
+
+
+<tr>
+<td>Alerts delayed</td>
+<td>Ruler</td>
+</tr>
+
+
+<tr>
+<td>Huge S3 cost</td>
+<td>Alloy filtering</td>
+</tr>
+
+
+</table>
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>Loki SRE Troubleshooting Formula</h1>
+
+
+<div class="code">
+
+WRITE ISSUE?
+
+
+Check:
+
+
+Alloy
+
+
+Distributor
+
+
+Ring
+
+
+Ingester
+
+
+S3
+
+
+
+
+
+
+QUERY ISSUE?
+
+
+Check:
+
+
+Query Frontend
+
+
+Querier
+
+
+Cache
+
+
+Index
+
+
+S3
+
+
+
+
+
+
+COST ISSUE?
+
+
+Check:
+
+
+Retention
+
+
+Labels
+
+
+Log volume
+
+
+Compactor
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<div class="box">
+
+
+<h1>Final Production Memory</h1>
+
+
+<div class="code">
+
+Distributor
+=
+Can Loki accept traffic?
+
+
+
+Ingester
+=
+Can Loki safely store incoming logs?
+
+
+
+S3
+=
+Can Loki keep history?
+
+
+
+Querier
+=
+Can users search?
+
+
+
+Frontend
+=
+Can Loki handle big queries?
+
+
+
+Compactor
+=
+Can Loki control storage?
+
+
+
+Ruler
+=
+Can Loki alert automatically?
+
+</div>
+
+
+</div>
+
+
+
+
+</body>
+</html>
