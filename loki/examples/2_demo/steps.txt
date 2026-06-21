@@ -1,3 +1,6 @@
+ssh -L 5006:localhost:5006 pep@34.14.184.202
+
+
 kubectl create ns observability
 kubectl create ns apps
 
@@ -23,6 +26,50 @@ helm install minio minio/minio \
 --set buckets[1].name=mimir-data
 
 
+
+##################################################################################
+
+version: "3.9"
+
+services:
+
+  minio:
+
+    image: minio/minio
+    container_name: minio
+
+    command: server /data --console-address ":9001"
+
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
+
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+    volumes:
+      - ./minio-data:/data
+
+    restart: unless-stopped
+
+  minio-init:
+
+    image: minio/mc
+
+    depends_on:
+      - minio
+
+    entrypoint: >
+      /bin/sh -c "
+      sleep 15;
+      mc alias set local http://minio:9000 admin password123;
+      mc mb local/loki-data --ignore-existing;
+      mc mb local/mimir-data --ignore-existing;
+      mc ls local;
+      exit 0;
+      "
+#####################################################################
 
 kubectl get pods -n observability
 
