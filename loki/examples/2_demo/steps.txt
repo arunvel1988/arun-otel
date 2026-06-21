@@ -137,9 +137,9 @@ kubectl apply -f app.yaml
 
 kubectl logs -n apps deployment/python-app
 
-kubectl exec -n observability loki-write-0 -- \
-wget -qO- localhost:3100/metrics \
-| grep distributor
+kubectl port-forward -n observability svc/loki-write 3100:3100
+
+
 
 kubectl exec -n observability loki-write-0 -- \
 wget -qO- localhost:3100/metrics \
