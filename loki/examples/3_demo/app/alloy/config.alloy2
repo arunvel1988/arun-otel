@@ -1,7 +1,7 @@
 local.file_match "logs" {
   path_targets = [{
     __path__ = "/logs/app.log",
-    job = "checkout"
+    job      = "checkout",
   }]
 }
 
@@ -14,19 +14,19 @@ loki.process "logs" {
 
   stage.json {
     expressions = {
-      service="service"
-      user_id="user_id"
-      session_id="session_id"
-      order_id="order_id"
+      service    = "service",
+      user_id    = "user_id",
+      session_id = "session_id",
+      order_id   = "order_id",
     }
   }
 
   stage.labels {
     values = {
-      service=""
-      user_id=""
-      session_id=""
-      order_id=""
+      service    = "",
+      user_id    = "",
+      session_id = "",
+      order_id   = "",
     }
   }
 
@@ -34,7 +34,7 @@ loki.process "logs" {
     values = [
       "user_id",
       "session_id",
-      "order_id"
+      "order_id",
     ]
   }
 
