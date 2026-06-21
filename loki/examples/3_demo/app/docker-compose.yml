@@ -13,7 +13,7 @@ services:
       - run
       - /etc/alloy/config.alloy
     volumes:
-      - ./alloy/alloy-bad.alloy:/etc/alloy/config.alloy
+      - ./alloy/config1.alloy:/etc/alloy/config.alloy
       - logs:/logs
 
   loki:
