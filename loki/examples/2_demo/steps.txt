@@ -68,7 +68,7 @@ services:
       mc mb local/mimir-data --ignore-existing;
       mc ls local;
       exit 0;
-      "
+      
 #####################################################################
 
 kubectl get pods -n observability
@@ -290,7 +290,9 @@ helm install alloy grafana/alloy \
 -n observability \
 -f alloy-values.yaml
 
-
+helm upgrade alloy grafana/alloy \
+  -n observability \
+  -f alloy-values.yaml
 #####################################################################
 
 nano app.py
