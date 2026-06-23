@@ -1,0 +1,26 @@
+groups:
+
+- name: checkout-demo
+
+  rules:
+
+
+  - record: checkout:rate5m
+
+    expr: sum(rate(checkout_total[5m]))
+
+
+
+  - alert: HighCheckoutTraffic
+
+    expr: sum(rate(checkout_total[1m])) > 5
+
+    for: 1m
+
+    labels:
+
+      severity: warning
+
+    annotations:
+
+      message: checkout traffic high
