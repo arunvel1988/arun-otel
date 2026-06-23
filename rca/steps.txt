@@ -1,1 +1,52 @@
 
+docker exec -it mimirtool sh
+
+
+export MIMIR_ADDRESS=http://mimir:9009
+
+export MIMIR_TENANT_ID=training
+
+mimirtool analyze prometheus
+
+mimirtool analyze prometheus --extended
+
+mimirtool rules load /rules/good-rule.yaml
+
+mimirtool rules list
+
+mimirtool rules get
+
+mimirtool rules lint /rules/bad-rule.yaml
+export GRAFANA_ADDRESS=http://grafana:3000
+export GRAFANA_API_KEY=<TOKEN>
+
+mimirtool analyze grafana
+
+mimirtool rules list
+
+mimirtool rules get \
+> rules-backup.yaml
+
+mimirtool rules lint rule.yaml
+
+mimirtool rules list
+
+mimirtool rules delete checkout
+
+export MIMIR_TENANT_ID=training
+
+
+mimirtool analyze prometheus
+
+export MIMIR_TENANT_ID=production
+
+
+mimirtool analyze prometheus
+
+mimirtool bucket-validation
+
+mimirtool analyze prometheus \
+--output=json \
+> report.json
+
+cat report.json
