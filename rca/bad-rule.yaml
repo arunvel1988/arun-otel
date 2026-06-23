@@ -1,0 +1,11 @@
+groups:
+
+- name: broken
+
+
+  rules:
+
+
+  - record: wrong_rule
+
+    expr: rate(
