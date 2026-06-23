@@ -1,0 +1,67 @@
+target: all
+
+
+multitenancy_enabled: true
+
+
+server:
+  http_listen_port: 9009
+
+
+
+blocks_storage:
+
+  backend: filesystem
+
+  filesystem:
+    dir: /tmp/mimir
+
+
+
+ingester:
+
+  ring:
+
+    replication_factor: 1
+
+    kvstore:
+
+      store: inmemory
+
+
+
+store_gateway:
+
+  sharding_ring:
+
+    replication_factor: 1
+
+
+
+compactor:
+
+  data_dir: /tmp/compactor
+
+
+
+ruler:
+
+  enable_api: true
+
+  rule_path: /tmp/rules
+
+  storage:
+
+    type: local
+
+    local:
+
+      directory: /rules
+
+
+
+alertmanager:
+
+  enable_api: true
+
+  data_dir: /tmp/am
