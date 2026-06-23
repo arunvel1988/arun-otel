@@ -1,1 +1,296 @@
-docker run --rm grafana/mimirtool:latest version
+
+#!/bin/bash
+
+set -e
+
+MIMIR=http://localhost:9009
+TENANT=demo
+
+
+
+
+if ! command -v mimirtool >/dev/null
+then
+
+cd /tmp
+
+curl -LO \
+https://github.com/grafana/mimir/releases/latest/download/mimirtool-linux-amd64
+
+chmod +x mimirtool-linux-amd64
+
+sudo mv mimirtool-linux-amd64 /usr/local/bin/mimirtool
+
+fi
+
+
+mimirtool version
+
+
+
+
+
+export MIMIR_ADDRESS=$MIMIR
+export MIMIR_TENANT_ID=$TENANT
+
+echo $MIMIR_ADDRESS
+echo $MIMIR_TENANT_ID
+
+
+echo "================================="
+echo " CHECK MIMIR READY"
+echo "================================="
+
+curl $MIMIR/ready || true
+
+
+
+
+
+cat > checkout-rule.yaml <<RULE
+groups:
+
+- name: checkout
+
+  rules:
+
+  - record: checkout_rate_5m
+
+    expr: sum(rate(checkout_total[5m]))
+
+
+  - alert: CheckoutHigh
+
+    expr: sum(rate(checkout_total[1m])) > 5
+
+    for: 1m
+
+    labels:
+
+      severity: warning
+
+    annotations:
+
+      summary: checkout high
+
+RULE
+
+
+
+
+
+mimirtool rules lint checkout-rule.yaml
+
+
+
+
+
+mimirtool rules load checkout-rule.yaml
+
+
+
+
+
+mimirtool rules list
+
+
+
+
+
+mimirtool rules get > rules-backup.yaml
+
+cat rules-backup.yaml
+
+
+
+
+
+cat > bad-rule.yaml <<BAD
+groups:
+
+- name: broken
+
+  rules:
+
+  - record: broken_rule
+
+    expr: rate(
+
+BAD
+
+
+
+
+set +e
+
+mimirtool rules lint bad-rule.yaml
+
+set -e
+
+
+
+
+
+
+
+cat > alertmanager.yaml <<AM
+
+route:
+
+ receiver: default
+
+
+receivers:
+
+- name: default
+
+AM
+
+
+
+
+
+mimirtool alertmanager load alertmanager.yaml
+
+
+
+echo "================================="
+echo " GET ALERTMANAGER"
+echo "================================="
+
+mimirtool alertmanager get
+
+
+
+
+
+
+if [ -f mimir.yaml ]
+then
+
+mimirtool config lint mimir.yaml
+
+else
+
+echo "mimir.yaml not found"
+
+fi
+
+
+
+
+
+
+
+
+cat > runtime.yaml <<RUN
+
+overrides:
+
+  demo:
+
+    max_global_series_per_user: 100000
+
+RUN
+
+
+mimirtool runtime-config lint runtime.yaml || true
+
+
+
+
+
+
+
+
+curl \
+-H "X-Scope-OrgID: $TENANT" \
+$MIMIR/prometheus/api/v1/label/__name__/values
+
+
+
+
+
+
+
+
+curl \
+-H "X-Scope-OrgID: $TENANT" \
+-G \
+$MIMIR/prometheus/api/v1/query \
+--data-urlencode \
+'query=count({__name__=~".+"})'
+
+
+
+
+
+
+
+
+
+curl \
+-H "X-Scope-OrgID: $TENANT" \
+-G \
+$MIMIR/prometheus/api/v1/query \
+--data-urlencode \
+'query=topk(10,count by(__name__)({__name__=~".+"}))'
+
+
+
+
+
+
+
+
+curl \
+-H "X-Scope-OrgID: $TENANT" \
+-G \
+$MIMIR/prometheus/api/v1/query \
+--data-urlencode \
+'query=topk(10,count by(job,instance)({__name__=~".+"}))'
+
+
+
+
+
+
+
+
+
+export MIMIR_TENANT_ID=randomtenant
+
+mimirtool rules list || true
+
+
+export MIMIR_TENANT_ID=$TENANT
+
+
+
+
+
+
+
+
+
+mimirtool rules delete checkout || true
+
+
+
+
+
+
+
+
+mimirtool alertmanager delete || true
+
+
+
+
+
+
+
+
+
+
+
